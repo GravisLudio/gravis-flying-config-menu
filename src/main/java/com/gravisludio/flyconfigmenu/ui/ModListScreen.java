@@ -155,7 +155,9 @@ public class ModListScreen extends AbstractSimiScreen {
                 button.setX(getX() + getWidth() - 108);
                 button.setY(getY() + 10);
                 button.setHeight(getHeight() - 20);
-                button.extractRenderState(graphics, mouseX, mouseY, partialTick);
+                if (button.getY() >= ModList.this.getY() && button.getY() + button.getHeight() <= ModList.this.getBottom()) {
+                    button.extractRenderState(graphics, mouseX, mouseY, partialTick);
+                }
             }
 
             @Override

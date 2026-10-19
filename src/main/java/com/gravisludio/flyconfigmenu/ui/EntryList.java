@@ -193,6 +193,20 @@ public final class EntryList extends ContainerObjectSelectionList<EntryList.Row>
             return 4;
         }
 
+        /**
+         * Create's box widgets are drawn as GUI render states that do not honour the list's scissor, so a button of a row that
+         * is half scrolled out would float outside the list. Draw a widget only while it is fully inside the list.
+         */
+        protected final boolean inView(int y, int height) {
+            return y >= list.getY() && y + height <= list.getBottom();
+        }
+
+        protected final void drawIfInView(net.minecraft.client.gui.components.AbstractWidget widget, GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+            if (inView(widget.getY(), widget.getHeight())) {
+                widget.extractRenderState(graphics, mouseX, mouseY, partialTick);
+            }
+        }
+
         protected int labelWidth(int totalWidth) {
             return (int) (totalWidth * LABEL_WIDTH_MULT) + 30;
         }
@@ -214,7 +228,7 @@ public final class EntryList extends ContainerObjectSelectionList<EntryList.Row>
             button.setX(getX() + getWidth() - 108);
             button.setY(getY() + 10);
             button.setHeight(getHeight() - 20);
-            button.extractRenderState(graphics, mouseX, mouseY, partialTick);
+            drawIfInView(button, graphics, mouseX, mouseY, partialTick);
         }
 
         @Override
@@ -344,7 +358,7 @@ public final class EntryList extends ContainerObjectSelectionList<EntryList.Row>
 
             resetButton.setX(getX() + getWidth() - RESET_WIDTH + 6);
             resetButton.setY(getY() + 10);
-            resetButton.extractRenderState(graphics, mouseX, mouseY, partialTick);
+            drawIfInView(resetButton, graphics, mouseX, mouseY, partialTick);
         }
     }
 
@@ -385,7 +399,7 @@ public final class EntryList extends ContainerObjectSelectionList<EntryList.Row>
             button.setY(getY() + 10);
             button.setWidth(35);
             button.setHeight(getHeight() - 20);
-            button.extractRenderState(graphics, mouseX, mouseY, partialTick);
+            drawIfInView(button, graphics, mouseX, mouseY, partialTick);
         }
 
         /** For tests: presses the button. */
@@ -477,6 +491,9 @@ public final class EntryList extends ContainerObjectSelectionList<EntryList.Row>
             textField.setY(getY() + 8);
             textField.setWidth(fieldWidth);
             textField.setHeight(20);
+            if (!inView(textField.getY(), textField.getHeight())) {
+                return;
+            }
             textField.extractWidgetRenderState(graphics, mouseX, mouseY, partialTick);
             if (!minText.isEmpty()) {
                 graphics.text(font, minText, textField.getX() - minWidth, textField.getY() + 6, ConfigUi.TEXT_DARKER, false);
@@ -536,7 +553,9 @@ public final class EntryList extends ContainerObjectSelectionList<EntryList.Row>
             textField.setY(getY() + 8);
             textField.setWidth(Math.max(40, Math.min(getWidth() - labelWidth(getWidth()) - RESET_WIDTH, 80)));
             textField.setHeight(20);
-            textField.extractWidgetRenderState(graphics, mouseX, mouseY, partialTick);
+            if (inView(textField.getY(), textField.getHeight())) {
+                textField.extractWidgetRenderState(graphics, mouseX, mouseY, partialTick);
+            }
         }
 
         public EditBox textField() {
@@ -546,7 +565,7 @@ public final class EntryList extends ContainerObjectSelectionList<EntryList.Row>
 
     /** An enum: a box on each side to step through the values, the current one between them. */
     public static final class EnumRow extends ValueRow {
-        private static final int CYCLE_WIDTH = 34;
+        private static final int CYCLE_WIDTH = 20;
 
         private final IconBox cycleLeft;
         private final IconBox cycleRight;
@@ -556,16 +575,14 @@ public final class EntryList extends ContainerObjectSelectionList<EntryList.Row>
             super(list, path, leaf);
             valueText = Component.literal(format(value()));
 
-            cycleLeft = new IconBox(0, 0, CYCLE_WIDTH + 8, 16, AllIcons.I_CONFIG_PREV);
+            cycleLeft = new IconBox(0, 0, CYCLE_WIDTH, 16, AllIcons.I_CONFIG_PREV);
             cycleLeft.withCustomBackground(BoxElement.COLOR_BACKGROUND_FLAT);
-            cycleLeft.setIconOffsetX(-(CYCLE_WIDTH + 8 - 16) / 2 + 2);
             cycleLeft.withCallback(() -> cycleValue(-1));
             cycleLeft.active = isMutable();
             cycleLeft.updateGradientFromState();
 
-            cycleRight = new IconBox(0, 0, CYCLE_WIDTH + 8, 16, AllIcons.I_CONFIG_NEXT);
+            cycleRight = new IconBox(0, 0, CYCLE_WIDTH, 16, AllIcons.I_CONFIG_NEXT);
             cycleRight.withCustomBackground(BoxElement.COLOR_BACKGROUND_FLAT);
-            cycleRight.setIconOffsetX((CYCLE_WIDTH + 8 - 16) / 2 - 2);
             cycleRight.withCallback(() -> cycleValue(1));
             cycleRight.active = isMutable();
             cycleRight.updateGradientFromState();
@@ -599,17 +616,22 @@ public final class EntryList extends ContainerObjectSelectionList<EntryList.Row>
             super.extractContent(graphics, mouseX, mouseY, hovered, partialTick);
             Font font = Minecraft.getInstance().font;
 
-            cycleLeft.setX(getX() + labelWidth(getWidth()) + 4);
+            // The control spans from the label to just before the reset button: [<]  value  [>]
+            int controlLeft = getX() + labelWidth(getWidth()) + 4;
+            int controlRight = getX() + getWidth() - RESET_WIDTH + 6 - 9;
+            cycleLeft.setX(controlLeft);
             cycleLeft.setY(getY() + 10);
-            cycleLeft.extractRenderState(graphics, mouseX, mouseY, partialTick);
+            drawIfInView(cycleLeft, graphics, mouseX, mouseY, partialTick);
 
-            cycleRight.setX(getX() + getWidth() - CYCLE_WIDTH * 2 - RESET_WIDTH + 10);
+            cycleRight.setX(controlRight - CYCLE_WIDTH);
             cycleRight.setY(getY() + 10);
-            cycleRight.extractRenderState(graphics, mouseX, mouseY, partialTick);
+            drawIfInView(cycleRight, graphics, mouseX, mouseY, partialTick);
 
-            int left = cycleLeft.getX() + CYCLE_WIDTH + 8;
-            int right = cycleRight.getX();
-            graphics.centeredText(font, valueText, (left + right) / 2, getY() + 14, ConfigUi.TEXT);
+            if (inView(cycleLeft.getY(), cycleLeft.getHeight())) {
+                int left = controlLeft + CYCLE_WIDTH;
+                int right = controlRight - CYCLE_WIDTH;
+                graphics.centeredText(font, valueText, (left + right) / 2, getY() + 14, ConfigUi.TEXT);
+            }
         }
 
         /** For tests: steps through the values. */
