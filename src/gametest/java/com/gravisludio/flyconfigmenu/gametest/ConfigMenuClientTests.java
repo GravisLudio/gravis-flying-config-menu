@@ -10,16 +10,18 @@ import com.gravisludio.flyconfigmenu.config.GroupNode;
 import com.gravisludio.flyconfigmenu.config.LeafNode;
 import com.gravisludio.flyconfigmenu.config.ValueCodec;
 import com.gravisludio.flyconfigmenu.config.WorldState;
-import com.gravisludio.flyconfigmenu.screen.ConfigList;
-import com.gravisludio.flyconfigmenu.screen.ConfigOverviewScreen;
-import com.gravisludio.flyconfigmenu.screen.ModConfigScreen;
+import com.gravisludio.flyconfigmenu.ui.ConfigUi;
+import com.gravisludio.flyconfigmenu.ui.ConfirmationDialog;
+import com.gravisludio.flyconfigmenu.ui.EditorScreen;
+import com.gravisludio.flyconfigmenu.ui.EntryList;
+import com.gravisludio.flyconfigmenu.ui.ModListScreen;
+import com.gravisludio.flyconfigmenu.ui.RootScreen;
 import com.terraformersmc.modmenu.ModMenu;
 import com.zurrtum.create.catnip.config.Builder;
 import com.zurrtum.create.infrastructure.config.AllConfigs;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.TitleScreen;
 
 import java.io.File;
@@ -37,7 +39,7 @@ import java.util.Map;
  * the {@code [CFCM-TEST]} markers: the checks are collected and the test fails at the end, so one run reports everything
  * that is wrong. Screenshots: {@code build/run/clientGameTest/screenshots}.
  *
- * <p>What this cannot check: the read-only server tab on a REMOTE server (needs a second machine or a dedicated server).
+ * <p>What this cannot check: the read-only server file on a REMOTE server (needs a second machine or a dedicated server).
  */
 public class ConfigMenuClientTests implements FabricClientGameTest {
     private final List<String> failures = new ArrayList<>();
@@ -50,7 +52,7 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
         step("registry", this::registry);
         step("codecs", this::codecs);
         step("tree and editing", this::treeAndEditing);
-        step("stale builder state after reloads", this::staleBuilder);
+        step("builder state after reloads", this::builderAfterReloads);
         step("re-read from disk", this::rereadFromDisk);
         step("screens", () -> screens(context));
         step("Mod Menu", () -> modMenu(context));
@@ -96,6 +98,8 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
         expect("both".equals(comment.restart()) && comment.relog() && "#".equals(comment.intDisplay()), "comment annotations were not read: " + comment);
         expect(!WorldState.REMOTE.canEditServerConfig() && WorldState.NO_WORLD.canEditServerConfig() && WorldState.SINGLEPLAYER.canEditServerConfig(),
             "WorldState.canEditServerConfig is wrong");
+        expect("Tickrate Sync Timer".equals(ConfigUi.humanize("tickrateSyncTimer")), "humanize gave " + ConfigUi.humanize("tickrateSyncTimer"));
+        expect("Enable Foo".equals(ConfigUi.humanize("enable_foo")), "humanize of snake_case gave " + ConfigUi.humanize("enable_foo"));
     }
 
     // ---- the tree of Create's server config, edited for real --------------------------------------------------------
@@ -170,10 +174,11 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
     }
 
     /**
-     * Create Fly's own {@code CServer.reload} re-registers without saving. Two in a row leave a stale root at the bottom of
-     * the builder's stack. This reproduces that, reports what plain {@code CValue.set} does, and checks that our path edits correctly.
+     * Create Fly's own {@code CServer.reload} re-registers without saving. This runs it twice, logs the builder's state and
+     * checks that both a plain {@code CValue.set} and our own path still write the right value. (An earlier suspicion that
+     * the second reload leaves a stale root was NOT confirmed by this test.)
      */
-    private void staleBuilder() throws IOException {
+    private void builderAfterReloads() throws IOException {
         ConfigRegistry.Entry server = create("server");
         log("builder before the reloads: " + ConfigTrees.describeBuilder(server));
         AllConfigs.server().reload(null);
@@ -183,7 +188,8 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
 
         AllConfigs.server().tickrateSyncTimer.set(27);
         int plain = tickrateOnDisk(server);
-        log("upstream CValue.set after two reloads wrote " + plain + " to disk (27 = fine, 20 = the stale-root bug is real)");
+        log("upstream CValue.set after two reloads wrote " + plain + " to disk (27 = fine)");
+        expect(plain == 27, "a plain CValue.set after two reloads wrote " + plain + " instead of 27");
 
         AllConfigs.server().reload(null);
         AllConfigs.server().reload(null);
@@ -215,84 +221,179 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
 
     // ---- screens --------------------------------------------------------------------------------------------------
 
-    private void screens(ClientGameTestContext context) {
-        // Overview: one button per mod with a config.
-        context.setScreen(() -> new ConfigOverviewScreen(Minecraft.getInstance().gui.screen()));
-        context.waitTicks(10);
-        context.takeScreenshot("overview");
-        expect(context.computeOnClient(mc -> mc.gui.screen() instanceof ConfigOverviewScreen), "the overview screen did not open");
+    private static EditorScreen editor(ClientGameTestContext context) {
+        return context.computeOnClient(mc -> mc.gui.screen() instanceof EditorScreen e ? e : null);
+    }
 
-        // Editor for Create, starting on the client tab.
-        context.setScreen(() -> new ModConfigScreen(Minecraft.getInstance().gui.screen(), "create"));
+    private static <R extends EntryList.Row> R firstRow(EditorScreen screen, Class<R> type) {
+        return screen.list().children().stream().filter(type::isInstance).map(type::cast).findFirst().orElse(null);
+    }
+
+    /** The groups to open, from the file's top page, to reach a page that has an option of this kind; empty if the top page has one; null if none. */
+    private static List<GroupNode> pathToKind(GroupNode group, LeafNode.Kind kind) {
+        for (ConfigNode child : group.children()) {
+            if (child instanceof LeafNode leaf && leaf.kind() == kind) {
+                return new ArrayList<>();
+            }
+        }
+        for (ConfigNode child : group.children()) {
+            if (child instanceof GroupNode sub) {
+                List<GroupNode> path = pathToKind(sub, kind);
+                if (path != null) {
+                    path.addFirst(sub);
+                    return path;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static void backToTop(EditorScreen editor) {
+        while (!editor.currentGroup().name().equals(editor.entry().type())) {
+            editor.attemptBackstep();
+        }
+    }
+
+    private void screens(ClientGameTestContext context) throws IOException {
+        // The list of mods and the root screen of Create.
+        context.setScreen(() -> new ModListScreen(Minecraft.getInstance().gui.screen()));
         context.waitTicks(10);
-        ModConfigScreen screen = context.computeOnClient(mc -> mc.gui.screen() instanceof ModConfigScreen s ? s : null);
-        expect(screen != null, "the editor screen did not open");
-        if (screen == null) {
+        context.takeScreenshot("01-modlist");
+        expect(context.computeOnClient(mc -> mc.gui.screen() instanceof ModListScreen), "the mod list did not open");
+
+        context.setScreen(() -> new RootScreen(Minecraft.getInstance().gui.screen(), "create"));
+        context.waitTicks(10);
+        context.takeScreenshot("02-root");
+        expect(context.computeOnClient(mc -> mc.gui.screen() instanceof RootScreen), "the root screen did not open");
+
+        // The editor for Create's server file.
+        ConfigRegistry.Entry serverEntry = create("server");
+        context.setScreen(() -> new EditorScreen(Minecraft.getInstance().gui.screen(), serverEntry));
+        context.waitTicks(10);
+        EditorScreen editor = editor(context);
+        expect(editor != null, "the editor did not open");
+        if (editor == null) {
             return;
         }
-        log("editor opened on tab " + screen.selectedEntry().type() + ", read-only " + screen.isReadOnly());
-        context.takeScreenshot("editor-client-collapsed");
-        int collapsedRows = context.computeOnClient(mc -> screen.list().children().size());
-        context.runOnClient(mc -> screen.expandAll());
-        context.waitTicks(5);
-        int expandedRows = context.computeOnClient(mc -> screen.list().children().size());
-        log("client tab rows: " + collapsedRows + " collapsed, " + expandedRows + " expanded");
-        expect(expandedRows > collapsedRows && collapsedRows > 0, "expandAll did not add rows (" + collapsedRows + " -> " + expandedRows + ")");
-        context.takeScreenshot("editor-client-expanded");
+        expect(editor.isMutable(), "the server file is read-only at the title screen");
+        context.takeScreenshot("03-editor-top");
+        int topRows = context.computeOnClient(mc -> editor.list().children().size());
+        EntryList.NestedRow firstGroup = context.computeOnClient(mc -> firstRow(editor, EntryList.NestedRow.class));
+        log("editor top page: " + topRows + " rows");
+        expect(topRows > 3 && firstGroup != null, "the top page has no groups to open");
 
-        // Server tab, searching for the tick rate option; then type a new value into its box like a player would.
-        context.runOnClient(mc -> screen.select(ConfigRegistry.forMod("create").stream().filter(e -> e.type().equals("server")).findFirst().orElseThrow()));
+        // Open a group, type a number: it is STAGED, the file does not change until save.
+        GroupNode infrastructure = (GroupNode) editor.currentGroup().children().stream().filter(n -> n.name().equals("infrastructure")).findFirst().orElseThrow();
+        context.runOnClient(mc -> editor.open(infrastructure));
         context.waitTicks(5);
-        expect(!screen.isReadOnly(), "the server tab is read-only at the title screen");
-        context.runOnClient(mc -> screen.setQuery("tickrate"));
-        context.waitTicks(5);
-        int searchRows = context.computeOnClient(mc -> screen.list().children().size());
-        expect(searchRows >= 2 && searchRows <= 6, "searching 'tickrate' left " + searchRows + " rows (expected a group header and the option)");
-        context.takeScreenshot("editor-server-search");
+        expect("infrastructure".equals(editor.currentGroup().name()), "opening the group did not change the page");
+        EntryList.NumberRow number = context.computeOnClient(mc -> firstRow(editor, EntryList.NumberRow.class));
+        expect(number != null, "no number row in the infrastructure page");
+        if (number == null) {
+            return;
+        }
+        context.takeScreenshot("04-editor-page");
+        context.runOnClient(mc -> number.textField().setValue("31"));
+        context.waitTicks(10);
+        expect(editor.changes().size() == 1, "typing 31 did not stage one change (" + editor.changes().size() + ")");
+        expect(tickrateOnDisk(serverEntry) == 20, "a staged value reached the file before save");
+        context.takeScreenshot("05-editor-staged");
 
-        context.runOnClient(mc -> {
-            ConfigList.Row row = screen.list().children().stream().filter(r -> r instanceof ConfigList.ValueRow).findFirst().orElseThrow();
-            EditBox box = (EditBox) row.children().getFirst();
-            box.setValue("31");
-        });
+        context.runOnClient(mc -> number.textField().setValue("2"));   // below the minimum of 5
         context.waitTicks(3);
-        try {
-            expect(tickrateOnDisk(create("server")) == 31, "typing 31 in the box did not reach server.json");
-        } catch (IOException e) {
-            failures.add("could not read server.json: " + e);
-        }
-        context.takeScreenshot("editor-server-edited");
-        context.runOnClient(mc -> {
-            ConfigList.Row row = screen.list().children().stream().filter(r -> r instanceof ConfigList.ValueRow).findFirst().orElseThrow();
-            ((EditBox) row.children().getFirst()).setValue("2");   // below the minimum of 5: refused, red text
-        });
+        expect(editor.changes().size() == 1 && Integer.valueOf(31).equals(editor.changes().values().iterator().next().value()), "an invalid value changed the staged edit");
+        context.takeScreenshot("06-editor-invalid");
+        context.runOnClient(mc -> number.textField().setValue("31"));
         context.waitTicks(3);
-        try {
-            expect(tickrateOnDisk(create("server")) == 31, "an invalid value (2) was written to server.json");
-        } catch (IOException e) {
-            failures.add("could not read server.json: " + e);
-        }
-        context.takeScreenshot("editor-server-invalid");
 
-        // Put the default back so the run directory ends clean.
-        try {
-            find(ConfigTrees.readForEditing(create("server")).root(), "infrastructure", "tickrateSyncTimer").reset();
-        } catch (RuntimeException e) {
-            failures.add("could not reset tickrateSyncTimer: " + e);
+        // Going up a page does not ask; leaving the file with staged edits does, and Cancel keeps everything.
+        context.runOnClient(mc -> editor.attemptBackstep());
+        context.waitTicks(3);
+        expect(editor.currentGroup().name().equals("server"), "going back did not return to the top page");
+        context.runOnClient(mc -> editor.attemptBackstep());
+        context.waitTicks(5);
+        expect(context.computeOnClient(mc -> mc.gui.screen() instanceof ConfirmationDialog), "leaving with staged edits did not ask");
+        context.takeScreenshot("07-leave-dialog");
+        context.runOnClient(mc -> mc.gui.screen().onClose());   // Cancel
+        context.waitTicks(5);
+        expect(editor(context) == editor && editor.changes().size() == 1, "cancelling the question lost the editor or the staged edit");
+
+        // Save writes the file.
+        context.runOnClient(mc -> editor.saveChanges());
+        expect(editor.changes().isEmpty() && tickrateOnDisk(serverEntry) == 31, "saving did not write 31 (" + tickrateOnDisk(serverEntry) + ")");
+
+        // Reset all stages the defaults (nothing is written), discard drops them.
+        context.runOnClient(mc -> editor.stageDefaults());
+        expect(editor.changes().size() == 1 && tickrateOnDisk(serverEntry) == 31, "reset all staged " + editor.changes().size() + " change(s) (expected only the tick rate)");
+        context.runOnClient(mc -> editor.clearChanges());
+        expect(editor.changes().isEmpty(), "discard left staged edits");
+        find(ConfigTrees.readForEditing(serverEntry).root(), "infrastructure", "tickrateSyncTimer").reset();
+
+        // Boolean and enum rows, found by walking down the tree.
+        for (LeafNode.Kind kind : List.of(LeafNode.Kind.BOOLEAN, LeafNode.Kind.ENUM)) {
+            List<GroupNode> path = pathToKind(editor.tree().root(), kind);
+            expect(path != null, "no " + kind + " option in the server tree");
+            if (path == null) {
+                continue;
+            }
+            context.runOnClient(mc -> {
+                backToTop(editor);
+                path.forEach(editor::open);
+            });
+            context.waitTicks(5);
+            if (kind == LeafNode.Kind.BOOLEAN) {
+                EntryList.BooleanRow row = context.computeOnClient(mc -> firstRow(editor, EntryList.BooleanRow.class));
+                expect(row != null, "no boolean row on the page");
+                context.runOnClient(mc -> editor.list().setScrollAmount(Math.max(0, editor.list().children().indexOf(row) * 40 - 40)));
+                context.waitTicks(3);
+                context.takeScreenshot("08-editor-boolean");
+                if (row != null) {
+                    context.runOnClient(mc -> row.click());
+                }
+            } else {
+                EntryList.EnumRow row = context.computeOnClient(mc -> firstRow(editor, EntryList.EnumRow.class));
+                expect(row != null, "no enum row on the page");
+                context.runOnClient(mc -> editor.list().setScrollAmount(Math.max(0, editor.list().children().indexOf(row) * 40 - 40)));
+                context.waitTicks(3);
+                context.takeScreenshot("09-editor-enum");
+                if (row != null) {
+                    context.runOnClient(mc -> row.click(1));
+                }
+            }
+            expect(editor.changes().size() == 1, "changing a " + kind + " option staged " + editor.changes().size() + " change(s)");
+            context.waitTicks(10);
+            context.takeScreenshot("10-editor-" + kind.name().toLowerCase() + "-staged");
+            context.runOnClient(mc -> editor.clearChanges());
         }
 
-        context.runOnClient(mc -> mc.gui.screen().onClose());
+        // Search from the top page: only the group that holds the tick rate stays.
+        context.runOnClient(mc -> backToTop(editor));
+        context.waitTicks(3);
+        context.runOnClient(mc -> editor.list().updateFilter("tickrate"));
+        context.waitTicks(3);
+        int searchRows = context.computeOnClient(mc -> editor.list().children().size());
+        expect(searchRows == 1, "searching 'tickrate' left " + searchRows + " row(s) (expected the one group)");
+        context.takeScreenshot("11-editor-search");
+
+        // The client file looks the same way.
+        context.setScreen(() -> new EditorScreen(Minecraft.getInstance().gui.screen(), create("client")));
+        context.waitTicks(10);
+        context.takeScreenshot("12-editor-client");
+        int clientRows = context.computeOnClient(mc -> editor(context).list().children().size());
+        expect(clientRows > 5, "the client page shows " + clientRows + " row(s): the single wrapping group was not flattened");
+
+        context.runOnClient(mc -> mc.gui.setScreen(null));
         context.waitTicks(5);
     }
 
     private void modMenu(ClientGameTestContext context) {
         expect(ModMenu.hasConfigScreen("create"), "Mod Menu has no config button for Create");
         expect(ModMenu.hasConfigScreen(ConfigMenu.MOD_ID), "Mod Menu has no config button for our own entry");
-        boolean editor = context.computeOnClient(mc -> ModMenu.getConfigScreen("create", mc.gui.screen()) instanceof ModConfigScreen);
-        boolean overview = context.computeOnClient(mc -> ModMenu.getConfigScreen(ConfigMenu.MOD_ID, mc.gui.screen()) instanceof ConfigOverviewScreen);
-        log("Mod Menu: config button for create -> " + editor + ", for this mod -> " + overview);
-        expect(editor, "Mod Menu's config screen for Create is not our editor");
-        expect(overview, "Mod Menu's config screen for this mod is not our overview");
+        boolean root = context.computeOnClient(mc -> ModMenu.getConfigScreen("create", mc.gui.screen()) instanceof RootScreen);
+        boolean list = context.computeOnClient(mc -> ModMenu.getConfigScreen(ConfigMenu.MOD_ID, mc.gui.screen()) instanceof ModListScreen);
+        log("Mod Menu: config button for create -> " + root + ", for this mod -> " + list);
+        expect(root, "Mod Menu's config screen for Create is not our root screen");
+        expect(list, "Mod Menu's config screen for this mod is not our mod list");
     }
 
     // ---- helpers --------------------------------------------------------------------------------------------------

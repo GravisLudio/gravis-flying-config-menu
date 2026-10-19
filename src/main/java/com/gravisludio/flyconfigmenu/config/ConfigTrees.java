@@ -48,6 +48,10 @@ public final class ConfigTrees {
         JsonObject root = findRoot(entry.builder(), bindings);
         int[] reachable = {0};
         GroupNode tree = group(entry.type(), root, bindings, reachable);
+        // Create Fly's client file wraps everything in one group named like the file: show its options directly.
+        if (tree.children().size() == 1 && tree.children().getFirst() instanceof GroupNode only && only.name().equals(entry.type())) {
+            tree = new GroupNode(entry.type(), only.comment(), only.children());
+        }
         return new Tree(tree, bindings.size(), reachable[0]);
     }
 
