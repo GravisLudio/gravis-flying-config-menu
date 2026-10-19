@@ -1,4 +1,21 @@
 {
   "create_fly_config_menu.screen.title": "Create Fly Config",
-  "create_fly_config_menu.screen.empty": "No configs found. Is Create Fly installed and compatible?"
+  "create_fly_config_menu.screen.empty": "No configs found. Is Create Fly installed and compatible?",
+  "create_fly_config_menu.type.client": "Client",
+  "create_fly_config_menu.type.common": "Common",
+  "create_fly_config_menu.type.server": "Server",
+  "create_fly_config_menu.search": "Search options...",
+  "create_fly_config_menu.reset": "Reset to default (%s)",
+  "create_fly_config_menu.default": "Default: %s",
+  "create_fly_config_menu.range": "Range: %s ~ %s",
+  "create_fly_config_menu.restart.client": "Needs a game restart to take full effect.",
+  "create_fly_config_menu.restart.server": "Needs a world or server restart to take full effect.",
+  "create_fly_config_menu.restart.both": "Needs a restart to take full effect.",
+  "create_fly_config_menu.relog": "Rejoin the world for this to take effect.",
+  "create_fly_config_menu.readonly.option": "Read-only while you are connected to a server.",
+  "create_fly_config_menu.status.readonly": "Read-only: these are the server's settings. Leave the server to edit your own.",
+  "create_fly_config_menu.status.server.world": "Changes are saved now and used by this world right away; options marked ! may need a restart.",
+  "create_fly_config_menu.status.server.menu": "Editing the server settings file: they apply the next time a world loads.",
+  "create_fly_config_menu.status.common": "Saved now. Many of these only apply after a restart. Options marked ! say so.",
+  "create_fly_config_menu.status.client": "Saved now and applied right away unless an option is marked !."
 }

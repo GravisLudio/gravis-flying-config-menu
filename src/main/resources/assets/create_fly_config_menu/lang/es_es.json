@@ -1,4 +1,21 @@
 {
   "create_fly_config_menu.screen.title": "Configuración de Create Fly",
-  "create_fly_config_menu.screen.empty": "No se encontró ninguna configuración. ¿Está instalado Create Fly y es compatible?"
+  "create_fly_config_menu.screen.empty": "No se encontró ninguna configuración. ¿Está instalado Create Fly y es compatible?",
+  "create_fly_config_menu.type.client": "Cliente",
+  "create_fly_config_menu.type.common": "Común",
+  "create_fly_config_menu.type.server": "Servidor",
+  "create_fly_config_menu.search": "Buscar opciones...",
+  "create_fly_config_menu.reset": "Restablecer al valor por defecto (%s)",
+  "create_fly_config_menu.default": "Por defecto: %s",
+  "create_fly_config_menu.range": "Rango: %s ~ %s",
+  "create_fly_config_menu.restart.client": "Hay que reiniciar el juego para que surta efecto del todo.",
+  "create_fly_config_menu.restart.server": "Hay que reiniciar el mundo o el servidor para que surta efecto del todo.",
+  "create_fly_config_menu.restart.both": "Hay que reiniciar para que surta efecto del todo.",
+  "create_fly_config_menu.relog": "Vuelve a entrar al mundo para que surta efecto.",
+  "create_fly_config_menu.readonly.option": "Solo lectura mientras estés conectado a un servidor.",
+  "create_fly_config_menu.status.readonly": "Solo lectura: son los ajustes del servidor. Sal del servidor para editar los tuyos.",
+  "create_fly_config_menu.status.server.world": "Los cambios se guardan ya y este mundo los usa enseguida; las opciones con ! pueden pedir reinicio.",
+  "create_fly_config_menu.status.server.menu": "Editas el archivo de ajustes del servidor: se aplican la próxima vez que cargues un mundo.",
+  "create_fly_config_menu.status.common": "Se guarda ya. Muchas solo se aplican tras reiniciar. Las marcadas con ! lo dicen.",
+  "create_fly_config_menu.status.client": "Se guarda ya y se aplica enseguida salvo que la opción lleve !."
 }
