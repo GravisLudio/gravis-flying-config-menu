@@ -2,6 +2,7 @@ package com.gravisludio.flyconfigmenu.ui;
 
 import com.gravisludio.flyconfigmenu.ConfigMenu;
 import com.gravisludio.flyconfigmenu.config.ConfigRegistry;
+import com.gravisludio.flyconfigmenu.ui.cog.CogShadow;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.zurrtum.create.catnip.theme.Color;
 import com.zurrtum.create.client.catnip.gui.AbstractSimiScreen;
@@ -60,6 +61,24 @@ public class ModListScreen extends AbstractSimiScreen {
         list = new ModList(width, height - 60, 15, 40, filter);
         list.updateSizeAndPosition(listWidth, height - 60, width / 2 - listWidth / 2, 15);
         addRenderableWidget(list);
+    }
+
+    @Override
+    protected void renderWindowBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
+        super.renderWindowBackground(graphics, mouseX, mouseY, partialTicks);
+        CogShadow.render(graphics, width, height, partialTicks);
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        CogShadow.tick();
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        CogShadow.bump((float) (-scrollY * 5));
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override

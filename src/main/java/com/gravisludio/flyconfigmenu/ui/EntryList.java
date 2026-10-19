@@ -5,6 +5,7 @@ import com.gravisludio.flyconfigmenu.config.ConfigNode;
 import com.gravisludio.flyconfigmenu.config.GroupNode;
 import com.gravisludio.flyconfigmenu.config.LeafNode;
 import com.gravisludio.flyconfigmenu.config.ValueCodec;
+import com.gravisludio.flyconfigmenu.ui.cog.CogShadow;
 import com.zurrtum.create.catnip.animation.LerpedFloat;
 import com.zurrtum.create.catnip.theme.Color;
 import com.zurrtum.create.client.catnip.gui.UIRenderHelper;
@@ -368,7 +369,11 @@ public final class EntryList extends ContainerObjectSelectionList<EntryList.Row>
         BooleanRow(EntryList list, String path, LeafNode leaf) {
             super(list, path, leaf);
             button = new IconBox(0, 0, 35, 16, AllIcons.I_CONFIRM);
-            button.withCallback(() -> setValue(!(Boolean) value()));
+            button.withCallback(() -> {
+                boolean on = !(Boolean) value();
+                setValue(on);
+                CogShadow.bump(on ? 15f : -16f);
+            });
             button.active = isMutable();
             button.updateGradientFromState();
             showCurrentValue();
@@ -592,6 +597,7 @@ public final class EntryList extends ContainerObjectSelectionList<EntryList.Row>
             Object[] options = leaf.enumConstants();
             int index = ((Enum<?>) value()).ordinal();
             setValue(options[Math.floorMod(index + direction, options.length)]);
+            CogShadow.bump(direction * 15f);
         }
 
         private static String format(Object value) {

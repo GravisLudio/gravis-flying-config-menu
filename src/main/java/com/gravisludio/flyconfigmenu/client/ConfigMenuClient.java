@@ -1,13 +1,16 @@
 package com.gravisludio.flyconfigmenu.client;
 
+import com.gravisludio.flyconfigmenu.ui.cog.CogShadowRenderer;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.rendering.v1.PictureInPictureRendererRegistry;
 
 /**
- * Client entrypoint. The mod does its work through the {@code Builder.create} mixin and the screens it opens, so there
- * is nothing to set up here yet; the entrypoint exists so Fabric treats this as a client mod with a real initializer.
+ * Client entrypoint. The configs are found by the {@code Builder.create} mixin; here we only register the renderer of the
+ * cog that turns behind the screens.
  */
 public class ConfigMenuClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        PictureInPictureRendererRegistry.register(context -> new CogShadowRenderer());
     }
 }

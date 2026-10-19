@@ -8,6 +8,7 @@ import com.gravisludio.flyconfigmenu.config.ConfigTrees;
 import com.gravisludio.flyconfigmenu.config.GroupNode;
 import com.gravisludio.flyconfigmenu.config.LeafNode;
 import com.gravisludio.flyconfigmenu.config.WorldState;
+import com.gravisludio.flyconfigmenu.ui.cog.CogShadow;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.zurrtum.create.client.catnip.gui.AbstractSimiScreen;
 import com.zurrtum.create.client.catnip.gui.widget.AbstractSimiWidget;
@@ -284,10 +285,23 @@ public class EditorScreen extends AbstractSimiScreen {
     @Override
     public void tick() {
         super.tick();
+        CogShadow.tick();
         updateActionButtons();
         if (list != null) {
             list.tickRows();
         }
+    }
+
+    @Override
+    protected void renderWindowBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
+        super.renderWindowBackground(graphics, mouseX, mouseY, partialTicks);
+        CogShadow.render(graphics, width, height, partialTicks);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        CogShadow.bump((float) (-scrollY * 5));
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override

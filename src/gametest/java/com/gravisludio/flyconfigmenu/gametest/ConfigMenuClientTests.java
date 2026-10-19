@@ -16,6 +16,7 @@ import com.gravisludio.flyconfigmenu.ui.EditorScreen;
 import com.gravisludio.flyconfigmenu.ui.EntryList;
 import com.gravisludio.flyconfigmenu.ui.ModListScreen;
 import com.gravisludio.flyconfigmenu.ui.RootScreen;
+import com.gravisludio.flyconfigmenu.ui.cog.CogShadow;
 import com.terraformersmc.modmenu.ModMenu;
 import com.zurrtum.create.catnip.config.Builder;
 import com.zurrtum.create.infrastructure.config.AllConfigs;
@@ -264,6 +265,11 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
         context.setScreen(() -> new RootScreen(Minecraft.getInstance().gui.screen(), "create"));
         context.waitTicks(10);
         context.takeScreenshot("02-root");
+        // Diagnostic: the same screen with the cog drawn opaque, to check it is there and how big and tilted it is.
+        context.runOnClient(mc -> CogShadow.setTint(0xFF_FFFFFF));
+        context.waitTicks(3);
+        context.takeScreenshot("02b-root-cog-visible");
+        context.runOnClient(mc -> CogShadow.setTint(CogShadow.SHADOW_TINT));
         expect(context.computeOnClient(mc -> mc.gui.screen() instanceof RootScreen), "the root screen did not open");
 
         // The editor for Create's server file.
@@ -379,6 +385,7 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
         context.setScreen(() -> new EditorScreen(Minecraft.getInstance().gui.screen(), create("client")));
         context.waitTicks(10);
         context.takeScreenshot("12-editor-client");
+        expect(!CogShadow.isDisabled(), "the background cog hit a drawing error and switched itself off (see latest.log)");
         int clientRows = context.computeOnClient(mc -> editor(context).list().children().size());
         expect(clientRows > 5, "the client page shows " + clientRows + " row(s): the single wrapping group was not flattened");
 

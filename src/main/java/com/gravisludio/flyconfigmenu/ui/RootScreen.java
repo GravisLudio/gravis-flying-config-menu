@@ -3,6 +3,7 @@ package com.gravisludio.flyconfigmenu.ui;
 import com.gravisludio.flyconfigmenu.ConfigMenu;
 import com.gravisludio.flyconfigmenu.config.ConfigRegistry;
 import com.gravisludio.flyconfigmenu.config.WorldState;
+import com.gravisludio.flyconfigmenu.ui.cog.CogShadow;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.zurrtum.create.catnip.theme.Color;
 import com.zurrtum.create.client.catnip.gui.AbstractSimiScreen;
@@ -73,6 +74,18 @@ public class RootScreen extends AbstractSimiScreen {
         LabelBox others = new LabelBox(width / 2 - 100, height / 2 - 15 + 90, 200, 16, Component.translatable("create_fly_config_menu.ui.other_mods"));
         others.withCallback(() -> minecraft.gui.setScreen(new ModListScreen(this)));
         addRenderableWidget(others);
+    }
+
+    @Override
+    protected void renderWindowBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
+        super.renderWindowBackground(graphics, mouseX, mouseY, partialTicks);
+        CogShadow.render(graphics, width, height, partialTicks);
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        CogShadow.tick();
     }
 
     @Override
