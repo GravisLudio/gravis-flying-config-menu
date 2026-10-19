@@ -1,0 +1,26 @@
+# idea
+out
+*.ipr
+*.iws
+*.iml
+.idea/
+
+# gradle
+build
+.gradle
+
+# runs
+run
+runs
+run-data
+
+# secrets
+secrets.properties
+.env
+
+# Python bytecode
+__pycache__/
+
+# traspaso interno para chats de Claude (rutas locales y notas): no va al repo publico
+LEEME.md
+CLAUDE.md

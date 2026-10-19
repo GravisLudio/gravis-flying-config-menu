@@ -1,0 +1,11 @@
+{
+  "required": false,
+  "package": "com.gravisludio.flyconfigmenu.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "BuilderCreateMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

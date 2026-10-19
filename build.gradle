@@ -1,0 +1,157 @@
+plugins {
+    id 'dev.architectury.loom-no-remap' version "${loom_version}"
+    id 'java-library'
+    id 'idea'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = "${mod_artifact_id}-${minecraft_version}"
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+    withSourcesJar()
+}
+
+sourceSets {
+    // Pruebas (`runGametest` de servidor y `runClientGameTest` con ventana). Viven aparte para que no entren en el jar.
+    gametest {
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+    }
+}
+
+loom {
+    runs {
+        client {
+            client()
+            name 'Create Fly Config Menu Client'
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+        }
+        "${mod_id}_gametest" {
+            sourceSet sourceSets.gametest
+        }
+    }
+
+    runs {
+        // Servidor sin ventana: logica pura (leer el arbol de config, aplicar rangos, guardar y releer JSON).
+        gametest {
+            server()
+            name 'Game Test'
+            source sourceSets.gametest
+            vmArg '-Dfabric-api.gametest'
+            vmArg "-Dfabric-api.gametest.report-file=${project.file('build/gametest/report.xml')}"
+            runDir 'build/gametest'
+        }
+        // Minecraft REAL con ventana: crea un mundo, abre la pantalla y saca capturas a
+        // build/run/clientGameTest/screenshots. NO lanzar con Gravis jugando (ver LEEME).
+        clientGameTest {
+            client()
+            name 'Client Game Test'
+            source sourceSets.gametest
+            vmArg '-Dfabric.client.gametest'
+            vmArg '-Xmx2G'
+            runDir 'build/run/clientGameTest'
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'Fabric'
+        url = 'https://maven.fabricmc.net/'
+    }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'Modrinth'
+                url = 'https://api.modrinth.com/maven'
+            }
+        }
+        filter {
+            includeGroup 'maven.modrinth'
+        }
+    }
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'TerraformersMC'
+                url = 'https://maven.terraformersmc.com/releases/'
+            }
+        }
+        filter {
+            includeGroup 'com.terraformersmc'
+        }
+    }
+}
+
+dependencies {
+    // Sin `mappings`: desde 1.21.11 el juego viene sin ofuscar y el namespace de produccion ya es mojmap.
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+
+    implementation "net.fabricmc:fabric-loader:${loader_version}"
+
+    // fabric-api es un contenedor sin clases propias: los modulos van nombrados uno por uno.
+    implementation fabricApi.module("fabric-api-base", fabric_api_version)
+    runtimeOnly "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+
+    // Create Fly embebe Flywheel, Ponder y Catnip (aqui vive `catnip.config`). Va con `implementation`: sin remapeo.
+    implementation("maven.modrinth:create-fly:${create_fly_version}") { transitive = false }
+
+    // Mod Menu: solo para compilar la integracion opcional. En ejecucion solo existe si el jugador lo instala.
+    compileOnly("com.terraformersmc:modmenu:${modmenu_version}") { transitive = false }
+
+    // No forman parte del bundle de fabric-api: modulos solo de desarrollo.
+    gametestImplementation fabricApi.module("fabric-gametest-api-v1", fabric_api_version)
+    gametestImplementation fabricApi.module("fabric-client-gametest-api-v1", fabric_api_version)
+    // Para probar la integracion con Mod Menu en el cliente de pruebas.
+    gametestRuntimeOnly("com.terraformersmc:modmenu:${modmenu_version}") { transitive = false }
+}
+
+processResources {
+    inputs.property 'version', project.version
+    inputs.property 'loader_version', loader_version
+    inputs.property 'create_version_range', create_version_range
+    inputs.property 'minecraft_version_range', minecraft_version_range
+
+    filesMatching('fabric.mod.json') {
+        expand(
+                mod_id: mod_id,
+                mod_name: mod_name,
+                mod_license: mod_license,
+                mod_authors: mod_authors,
+                mod_description: mod_description,
+                version: project.version,
+                loader_version: loader_version,
+                create_version_range: create_version_range,
+                minecraft_version_range: minecraft_version_range
+        )
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 25
+}
+
+jar {
+    from('LICENSE') {
+        rename { "${it}_${base.archivesName.get()}" }
+    }
+}
+
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+    }
+}

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "create_fly_config_menu_gametest",
+  "version": "1.0.0",
+  "name": "Create Fly: Config Menu game tests",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": [
+      "com.gravisludio.flyconfigmenu.gametest.ConfigMenuClientTests"
+    ]
+  },
+  "depends": {
+    "create_fly_config_menu": "*",
+    "fabric-client-gametest-api-v1": "*"
+  }
+}
