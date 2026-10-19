@@ -119,6 +119,16 @@ dependencies {
     gametestRuntimeOnly("com.terraformersmc:modmenu:${modmenu_version}") { transitive = false }
 }
 
+// Addon jars for the client test, only when asked (herramientas\probar-cliente.ps1 -ConAddons passes them):
+//   gradlew runClientGameTest -PwithDragonsPlus="<jar>" -PwithConnected="<jar>"
+['withDragonsPlus', 'withConnected'].each { prop ->
+    if (project.hasProperty(prop)) {
+        dependencies {
+            gametestRuntimeOnly files(project.property(prop))
+        }
+    }
+}
+
 processResources {
     inputs.property 'version', project.version
     inputs.property 'loader_version', loader_version

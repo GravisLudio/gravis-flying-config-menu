@@ -5,13 +5,18 @@
 #   .\herramientas\probar-cliente.ps1                 lanza la prueba (ventana de Minecraft ~2-4 min, se cierra sola)
 #   .\herramientas\probar-cliente.ps1 -SoloComprobar  solo mira si seria seguro lanzar; no lanza nada
 #   .\herramientas\probar-cliente.ps1 -SoloInforme    no lanza: resume la ultima ejecucion (marcadores [CFCM-TEST], capturas)
+#   .\herramientas\probar-cliente.ps1 -ConAddons      carga tambien Dragons Plus p3 y Connected (jars locales, rutas abajo; -Connected '' lo salta)
+#   OJO 2026-10-19: Connected 1.3.3-mc26.2-3/-4 NO arranca con Create Fly 26.2-6.0.9-2 (falta EncasedCogVisual): usar -Connected ''
 # La tarea de Gradle acaba en FAILED aunque todo vaya bien (vigilante de apagado de Flywheel): manda la linea "[CFCM-TEST] ALL OK".
 param(
     [string]$Proyecto = (Join-Path $PSScriptRoot '..'),
     [int]$MinimoMB = 3000,
     [string]$Log = (Join-Path $env:TEMP 'cfcm-client-gametest.log'),
     [switch]$SoloComprobar,
-    [switch]$SoloInforme
+    [switch]$SoloInforme,
+    [switch]$ConAddons,
+    [string]$DragonsPlus = 'E:\DEV\MC MODS\PORTS\CENTRAL KITCHEN\local-maven\plus\dragons\createdragonsplus\create-dragons-plus-fly-26.2-rc-2\1.11.4-p3\create-dragons-plus-fly-26.2-rc-2-1.11.4-p3.jar',
+    [string]$Connected = 'E:\DEV\create connected\build\libs\create_connected-fly-1.3.3-mc26.2-4.jar'
 )
 $ErrorActionPreference = 'Stop'
 $Proyecto = (Resolve-Path $Proyecto).Path
@@ -50,5 +55,19 @@ if ($SoloComprobar) { Write-Host 'Seria seguro lanzar.'; return }
 Remove-Item (Join-Path $ejecucion 'screenshots') -Recurse -Force -ErrorAction SilentlyContinue
 Set-Location $Proyecto
 Write-Host 'Lanzando runClientGameTest (acaba en FAILED aunque vaya bien; mira ALL OK)...'
-& .\gradlew.bat runClientGameTest --offline --console=plain *> $Log
+$extra = @()
+if ($ConAddons) {
+    # Un addon con la ruta vacia se salta (-Connected '' cuando el jar no arranca con esta version de Create Fly).
+    if ($DragonsPlus) {
+        if (-not (Test-Path -LiteralPath $DragonsPlus)) { Write-Host "NO LANZO: no existe $DragonsPlus"; return }
+        $extra += "-PwithDragonsPlus=$DragonsPlus"
+        Write-Host "Con addon: $DragonsPlus"
+    }
+    if ($Connected) {
+        if (-not (Test-Path -LiteralPath $Connected)) { Write-Host "NO LANZO: no existe $Connected"; return }
+        $extra += "-PwithConnected=$Connected"
+        Write-Host "Con addon: $Connected"
+    }
+}
+& .\gradlew.bat runClientGameTest --offline --console=plain @extra *> $Log
 Resumen

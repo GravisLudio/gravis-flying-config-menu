@@ -22,6 +22,9 @@ import com.zurrtum.create.catnip.config.Builder;
 import com.zurrtum.create.infrastructure.config.AllConfigs;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
+import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerConnection;
+import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerContext;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
 
@@ -57,6 +60,8 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
         step("re-read from disk", this::rereadFromDisk);
         step("screens", () -> screens(context));
         step("Mod Menu", () -> modMenu(context));
+        step("addons", () -> addons(context));
+        step("remote server", () -> remoteServer(context));
 
         context.runOnClient(mc -> mc.gui.setScreen(null));
         context.waitTicks(5);
@@ -401,6 +406,105 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
         log("Mod Menu: config button for create -> " + root + ", for this mod -> " + list);
         expect(root, "Mod Menu's config screen for Create is not our root screen");
         expect(list, "Mod Menu's config screen for this mod is not our mod list");
+    }
+
+    // ---- addons: Dragons Plus and Connected, when the runner loaded them (-ConAddons) ------------------------------
+
+    private void addons(ClientGameTestContext context) {
+        for (String modId : List.of("create_dragons_plus", "create_connected")) {
+            if (!FabricLoader.getInstance().isModLoaded(modId)) {
+                log(modId + " not loaded (run with -ConAddons to include it)");
+                continue;
+            }
+            List<ConfigRegistry.Entry> entries = ConfigRegistry.forMod(modId);
+            expect(!entries.isEmpty(), modId + " is loaded but the mixin found none of its configs");
+            for (ConfigRegistry.Entry entry : entries) {
+                ConfigTrees.Tree tree = ConfigTrees.readForEditing(entry);
+                Map<LeafNode.Kind, Integer> kinds = new EnumMap<>(LeafNode.Kind.class);
+                count(tree.root(), kinds);
+                log(modId + " / " + entry.type() + ": " + tree.bound() + " bound, " + tree.reachable() + " reached, kinds " + kinds);
+                expect(tree.bound() > 0 && tree.reachable() == tree.bound(), modId + " " + entry.type() + " tree is incomplete: " + tree.reachable() + "/" + tree.bound());
+            }
+            context.setScreen(() -> new RootScreen(Minecraft.getInstance().gui.screen(), modId));
+            context.waitTicks(10);
+            context.takeScreenshot("30-" + modId + "-root");
+            ConfigRegistry.Entry first = entries.stream().filter(e -> e.type().equals("server")).findFirst().orElse(entries.getFirst());
+            context.setScreen(() -> new EditorScreen(Minecraft.getInstance().gui.screen(), first));
+            context.waitTicks(10);
+            context.takeScreenshot("31-" + modId + "-" + first.type());
+        }
+        context.runOnClient(mc -> mc.gui.setScreen(null));
+        context.waitTicks(5);
+    }
+
+    // ---- remote server: the server file must be read-only and the local file untouched ----------------------------
+
+    private void remoteServer(ClientGameTestContext context) throws IOException {
+        // A dedicated server only starts once the Minecraft EULA is accepted in the run folder. Accepting it is the
+        // player's decision (Gravis edits eula.txt himself), so without it this step is skipped, not failed.
+        java.nio.file.Path eula = FabricLoader.getInstance().getGameDir().resolve("eula.txt");
+        if (!Files.exists(eula) || !Files.readString(eula, StandardCharsets.UTF_8).contains("eula=true")) {
+            log("remote server SKIPPED: the Minecraft EULA is not accepted in " + eula.toAbsolutePath() + " (eula=true runs this step)");
+            return;
+        }
+        ConfigRegistry.Entry serverEntry = create("server");
+        Builder builder = serverEntry.builder();
+        File file = new File(builder.configDir, builder.type + ".json");
+        String before = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+
+        try (TestDedicatedServerContext server = context.worldBuilder().createServer()) {
+            try (TestDedicatedServerConnection connection = server.connect()) {
+                context.waitFor(mc -> mc.level != null && mc.player != null);
+                context.waitTicks(20);
+                WorldState state = context.computeOnClient(mc -> WorldState.current());
+                log("connected to a dedicated server: world state " + state);
+                expect(state == WorldState.REMOTE, "connected to a dedicated server but the world state is " + state);
+
+                context.setScreen(() -> new RootScreen(Minecraft.getInstance().gui.screen(), "create"));
+                context.waitTicks(10);
+                context.takeScreenshot("20-remote-root");
+
+                context.setScreen(() -> new EditorScreen(Minecraft.getInstance().gui.screen(), serverEntry));
+                context.waitTicks(10);
+                EditorScreen editor = editor(context);
+                expect(editor != null && !editor.isMutable(), "the server file is editable while connected to a remote server");
+                if (editor != null) {
+                    GroupNode infrastructure = (GroupNode) editor.currentGroup().children().stream().filter(n -> n.name().equals("infrastructure")).findFirst().orElseThrow();
+                    context.runOnClient(mc -> editor.open(infrastructure));
+                    context.waitTicks(5);
+                    EntryList.NumberRow number = context.computeOnClient(mc -> firstRow(editor, EntryList.NumberRow.class));
+                    if (number != null) {
+                        context.runOnClient(mc -> number.textField().setValue("44"));
+                        context.waitTicks(3);
+                    }
+                    expect(editor.changes().isEmpty(), "a value was staged in the read-only server file: " + editor.changes().keySet());
+                    context.takeScreenshot("21-remote-editor-locked");
+                    context.runOnClient(mc -> editor.saveChanges());
+                }
+
+                // The client's own (client) file stays editable on a remote server.
+                context.setScreen(() -> new EditorScreen(Minecraft.getInstance().gui.screen(), create("client")));
+                context.waitTicks(5);
+                expect(editor(context) != null && editor(context).isMutable(), "the client file is read-only on a remote server");
+                context.runOnClient(mc -> mc.gui.setScreen(null));
+                context.waitTicks(5);
+            }
+        }
+        context.waitForScreen(TitleScreen.class);
+        context.waitTicks(10);
+
+        String after = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+        expect(before.equals(after), "the local server.json changed while connected to a remote server");
+
+        // Back at the title screen: the server file is editable again and shows what is on disk.
+        context.setScreen(() -> new EditorScreen(Minecraft.getInstance().gui.screen(), serverEntry));
+        context.waitTicks(5);
+        EditorScreen back = editor(context);
+        expect(back != null && back.isMutable(), "the server file is not editable again after leaving the server");
+        expect(Integer.valueOf(tickrateOnDisk(serverEntry)).equals(AllConfigs.server().tickrateSyncTimer.get()),
+            "after leaving the server, memory and disk disagree on the tick rate");
+        context.runOnClient(mc -> mc.gui.setScreen(null));
+        context.waitTicks(5);
     }
 
     // ---- helpers --------------------------------------------------------------------------------------------------
