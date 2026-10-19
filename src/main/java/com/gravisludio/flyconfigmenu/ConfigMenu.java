@@ -11,8 +11,13 @@ public final class ConfigMenu {
     private ConfigMenu() {
     }
 
-    /** The name Fabric knows a mod by (Create's own entry says "Create"), or the id when it is not a mod we can find. */
+    /**
+     * The name Fabric knows a mod by, or the id with a capital letter when it is not a mod of its own (Create Fly builds
+     * the configs of Flywheel, Ponder and Vanillin, which are bundled inside it).
+     */
     public static String displayName(String modId) {
-        return FabricLoader.getInstance().getModContainer(modId).map(container -> container.getMetadata().getName()).orElse(modId);
+        return FabricLoader.getInstance().getModContainer(modId)
+            .map(container -> container.getMetadata().getName())
+            .orElseGet(() -> modId.isEmpty() ? modId : Character.toUpperCase(modId.charAt(0)) + modId.substring(1));
     }
 }

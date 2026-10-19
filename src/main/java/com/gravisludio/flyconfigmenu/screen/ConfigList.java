@@ -117,7 +117,7 @@ public final class ConfigList extends ContainerObjectSelectionList<ConfigList.Ro
             }
             this.label = new StringWidget(name, font);
             this.widget = createWidget(font);
-            this.reset = Button.builder(Component.literal("↺"), b -> resetToDefault()).width(RESET_WIDTH).build();
+            this.reset = Button.builder(Component.literal("R"), b -> resetToDefault()).width(RESET_WIDTH).build();
 
             Tooltip tooltip = Tooltip.create(valueTooltip(leaf, editable));
             this.label.setTooltip(tooltip);

@@ -22,10 +22,12 @@ import java.util.Map;
  * of {@code ConfigBase} did.
  *
  * <p><b>Why {@link #normalize} exists.</b> {@code Builder.save()} writes {@code builder.object} after popping its private
- * {@code stack}. Create Fly's own {@code CServer.reload} re-registers the values without saving, which leaves
- * {@code object} pointing at some nested group and the stack full; after two reloads in a row {@code stack[0]} is a
- * STALE root, and the next {@code CValue.set} would write old data to disk and lose the edit. Before reading or writing
- * we find the real root (the candidate whose JSON still contains the live values) and clear the stack.
+ * {@code stack}, and Create Fly's {@code CServer.reload} re-registers values without saving, so the builder can be left
+ * with {@code object} inside a group and a stack of entries from earlier reads. In theory a second reload leaves a stale
+ * root at the bottom of the stack and the next {@code CValue.set} would write old data. The 2026-10-19 client test did NOT
+ * reproduce it (plain {@code CValue.set} after two reloads wrote the right value), so this is a cheap precaution, not a
+ * confirmed fix: it finds the real root (the candidate whose JSON contains the live values), clears the stack and points
+ * {@code object} at it. {@link #describeBuilder} shows the state for tests and logs.
  */
 public final class ConfigTrees {
     private ConfigTrees() {
@@ -81,6 +83,14 @@ public final class ConfigTrees {
         ConfigReflection.resetDepth(entry.root());
         entry.root().registerAll(builder);
         normalize(entry);
+    }
+
+    /** The builder's bookkeeping in one line, for tests and logs. */
+    public static String describeBuilder(ConfigRegistry.Entry entry) {
+        Map<JsonObject, ConfigBase.CValue<?>> bindings = new IdentityHashMap<>();
+        collect(entry.root(), bindings);
+        Builder builder = entry.builder();
+        return "stack size " + ConfigReflection.stackOf(builder).size() + ", object holds " + countReachable(builder.object, bindings) + " of " + bindings.size() + " options";
     }
 
     private static void collect(ConfigBase config, Map<JsonObject, ConfigBase.CValue<?>> bindings) {

@@ -1,6 +1,7 @@
 package com.gravisludio.flyconfigmenu.gametest;
 
 import com.google.gson.JsonObject;
+import com.gravisludio.flyconfigmenu.ConfigMenu;
 import com.gravisludio.flyconfigmenu.config.ConfigComment;
 import com.gravisludio.flyconfigmenu.config.ConfigNode;
 import com.gravisludio.flyconfigmenu.config.ConfigRegistry;
@@ -12,6 +13,7 @@ import com.gravisludio.flyconfigmenu.config.WorldState;
 import com.gravisludio.flyconfigmenu.screen.ConfigList;
 import com.gravisludio.flyconfigmenu.screen.ConfigOverviewScreen;
 import com.gravisludio.flyconfigmenu.screen.ModConfigScreen;
+import com.terraformersmc.modmenu.ModMenu;
 import com.zurrtum.create.catnip.config.Builder;
 import com.zurrtum.create.infrastructure.config.AllConfigs;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
@@ -51,6 +53,7 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
         step("stale builder state after reloads", this::staleBuilder);
         step("re-read from disk", this::rereadFromDisk);
         step("screens", () -> screens(context));
+        step("Mod Menu", () -> modMenu(context));
 
         context.runOnClient(mc -> mc.gui.setScreen(null));
         context.waitTicks(5);
@@ -172,8 +175,11 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
      */
     private void staleBuilder() throws IOException {
         ConfigRegistry.Entry server = create("server");
+        log("builder before the reloads: " + ConfigTrees.describeBuilder(server));
         AllConfigs.server().reload(null);
+        log("builder after one reload: " + ConfigTrees.describeBuilder(server));
         AllConfigs.server().reload(null);
+        log("builder after two reloads: " + ConfigTrees.describeBuilder(server));
 
         AllConfigs.server().tickrateSyncTimer.set(27);
         int plain = tickrateOnDisk(server);
@@ -277,6 +283,16 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
 
         context.runOnClient(mc -> mc.gui.screen().onClose());
         context.waitTicks(5);
+    }
+
+    private void modMenu(ClientGameTestContext context) {
+        expect(ModMenu.hasConfigScreen("create"), "Mod Menu has no config button for Create");
+        expect(ModMenu.hasConfigScreen(ConfigMenu.MOD_ID), "Mod Menu has no config button for our own entry");
+        boolean editor = context.computeOnClient(mc -> ModMenu.getConfigScreen("create", mc.gui.screen()) instanceof ModConfigScreen);
+        boolean overview = context.computeOnClient(mc -> ModMenu.getConfigScreen(ConfigMenu.MOD_ID, mc.gui.screen()) instanceof ConfigOverviewScreen);
+        log("Mod Menu: config button for create -> " + editor + ", for this mod -> " + overview);
+        expect(editor, "Mod Menu's config screen for Create is not our editor");
+        expect(overview, "Mod Menu's config screen for this mod is not our overview");
     }
 
     // ---- helpers --------------------------------------------------------------------------------------------------
