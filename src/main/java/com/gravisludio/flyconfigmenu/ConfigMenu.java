@@ -5,7 +5,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 
 public final class ConfigMenu {
-    public static final String MOD_ID = "create_fly_config_menu";
+    public static final String MOD_ID = "gravis_flying_config_menu";
     public static final Logger LOGGER = LogUtils.getLogger();
 
     private ConfigMenu() {

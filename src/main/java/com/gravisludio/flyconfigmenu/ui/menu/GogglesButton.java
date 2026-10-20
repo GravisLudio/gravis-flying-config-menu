@@ -42,7 +42,7 @@ public final class GogglesButton extends Button {
 
     public GogglesButton(int x, int y) {
         // The label is never drawn (the goggles are); it names the button for narration and for tests.
-        super(x, y, 20, 20, Component.translatable("create_fly_config_menu.goggles"), b -> open(), DEFAULT_NARRATION);
+        super(x, y, 20, 20, Component.translatable("gravis_flying_config_menu.goggles"), b -> open(), DEFAULT_NARRATION);
     }
 
     private static void open() {

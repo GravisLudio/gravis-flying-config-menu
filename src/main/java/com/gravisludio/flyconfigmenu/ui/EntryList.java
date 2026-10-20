@@ -278,16 +278,16 @@ public final class EntryList extends ContainerObjectSelectionList<EntryList.Row>
 
         private static List<Component> extraTooltip(LeafNode leaf) {
             List<Component> extra = new ArrayList<>();
-            extra.add(Component.translatable("create_fly_config_menu.default", String.valueOf(leaf.defaultValue())).withStyle(ChatFormatting.DARK_AQUA));
+            extra.add(Component.translatable("gravis_flying_config_menu.default", String.valueOf(leaf.defaultValue())).withStyle(ChatFormatting.DARK_AQUA));
             if ((leaf.kind() == LeafNode.Kind.INT || leaf.kind() == LeafNode.Kind.FLOAT) && hasUsefulBounds(leaf)) {
-                extra.add(Component.translatable("create_fly_config_menu.range", trim(leaf.min()), trim(leaf.max())).withStyle(ChatFormatting.DARK_AQUA));
+                extra.add(Component.translatable("gravis_flying_config_menu.range", trim(leaf.min()), trim(leaf.max())).withStyle(ChatFormatting.DARK_AQUA));
             }
             ConfigComment comment = leaf.comment();
             if (comment.relog()) {
-                extra.addAll(FontHelper.cutTextComponent(Component.translatable("create_fly_config_menu.relog"), FontHelper.Palette.GRAY_AND_GOLD));
+                extra.addAll(FontHelper.cutTextComponent(Component.translatable("gravis_flying_config_menu.relog"), FontHelper.Palette.GRAY_AND_GOLD));
             }
             if (comment.restart() != null) {
-                extra.addAll(FontHelper.cutTextComponent(Component.translatable("create_fly_config_menu.restart." + comment.restart()), FontHelper.Palette.GRAY_AND_RED));
+                extra.addAll(FontHelper.cutTextComponent(Component.translatable("gravis_flying_config_menu.restart." + comment.restart()), FontHelper.Palette.GRAY_AND_RED));
             }
             return extra;
         }

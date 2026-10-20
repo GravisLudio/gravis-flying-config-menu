@@ -48,19 +48,19 @@ public class ConfirmationDialog extends ConfigScreenBase {
         int x = width / 2 - (buttons * 70 + (buttons - 1) * 12) / 2;
         int y = textY + textHeight + 6;
 
-        LabelBox confirm = new LabelBox(x, y, 70, 16, Component.translatable(threeWay ? "create_fly_config_menu.ui.save_label" : "create_fly_config_menu.ui.confirm_label"));
+        LabelBox confirm = new LabelBox(x, y, 70, 16, Component.translatable(threeWay ? "gravis_flying_config_menu.ui.save_label" : "gravis_flying_config_menu.ui.confirm_label"));
         confirm.withCallback(() -> accept(Response.CONFIRM));
         addRenderableWidget(confirm);
         x += 82;
 
         if (threeWay) {
-            LabelBox dontSave = new LabelBox(x, y, 70, 16, Component.translatable("create_fly_config_menu.ui.dont_save_label"));
+            LabelBox dontSave = new LabelBox(x, y, 70, 16, Component.translatable("gravis_flying_config_menu.ui.dont_save_label"));
             dontSave.withCallback(() -> accept(Response.DONT_SAVE));
             addRenderableWidget(dontSave);
             x += 82;
         }
 
-        LabelBox cancel = new LabelBox(x, y, 70, 16, Component.translatable("create_fly_config_menu.ui.cancel_label"));
+        LabelBox cancel = new LabelBox(x, y, 70, 16, Component.translatable("gravis_flying_config_menu.ui.cancel_label"));
         cancel.withCallback(() -> accept(Response.CANCEL));
         addRenderableWidget(cancel);
 

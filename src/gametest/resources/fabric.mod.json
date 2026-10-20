@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "id": "create_fly_config_menu_gametest",
+  "id": "gravis_flying_config_menu_gametest",
   "version": "1.0.0",
-  "name": "Create Fly: Config Menu game tests",
+  "name": "Create: Gravis's Flying Config Menu game tests",
   "environment": "client",
   "entrypoints": {
     "fabric-client-gametest": [
@@ -10,7 +10,7 @@
     ]
   },
   "depends": {
-    "create_fly_config_menu": "*",
+    "gravis_flying_config_menu": "*",
     "fabric-client-gametest-api-v1": "*"
   }
 }

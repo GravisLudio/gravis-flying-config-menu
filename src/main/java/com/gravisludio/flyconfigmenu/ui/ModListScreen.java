@@ -29,7 +29,7 @@ public class ModListScreen extends ConfigScreenBase {
     private String filter = "";
 
     public ModListScreen(Screen parent) {
-        super(Component.translatable("create_fly_config_menu.screen.title"));
+        super(Component.translatable("gravis_flying_config_menu.screen.title"));
         this.parent = parent;
     }
 
@@ -41,10 +41,10 @@ public class ModListScreen extends ConfigScreenBase {
         IconBox goBack = new IconBox(width / 2 - listWidth / 2 - 30, height / 2 + 65, 20, 20, AllIcons.I_CONFIG_BACK);
         goBack.withPadding(2, 2);
         goBack.withCallback(() -> minecraft.gui.setScreen(parent));
-        goBack.getToolTip().add(Component.translatable("create_fly_config_menu.ui.go_back"));
+        goBack.getToolTip().add(Component.translatable("gravis_flying_config_menu.ui.go_back"));
         addRenderableWidget(goBack);
 
-        search = new EditBox(font, width / 2 - listWidth / 2, height - 35, listWidth, 20, Component.translatable("create_fly_config_menu.search"));
+        search = new EditBox(font, width / 2 - listWidth / 2, height - 35, listWidth, 20, Component.translatable("gravis_flying_config_menu.search"));
         search.setValue(filter);
         search.setResponder(query -> {
             filter = query.toLowerCase(Locale.ROOT);
@@ -52,7 +52,7 @@ public class ModListScreen extends ConfigScreenBase {
                 list.fill(filter);
             }
         });
-        search.setHint(Component.translatable("create_fly_config_menu.search"));
+        search.setHint(Component.translatable("gravis_flying_config_menu.search"));
         search.moveCursorToStart(false);
         addRenderableWidget(search);
 
@@ -64,7 +64,7 @@ public class ModListScreen extends ConfigScreenBase {
     @Override
     protected void renderWindow(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
         if (ConfigRegistry.modIds().isEmpty()) {
-            graphics.centeredText(font, Component.translatable("create_fly_config_menu.screen.empty"), width / 2, height / 2, ConfigUi.TEXT);
+            graphics.centeredText(font, Component.translatable("gravis_flying_config_menu.screen.empty"), width / 2, height / 2, ConfigUi.TEXT);
         }
     }
 

@@ -43,20 +43,20 @@ public class RootScreen extends ConfigScreenBase {
             String type = TYPES.get(i);
             ConfigRegistry.Entry entry = ConfigRegistry.forMod(modId).stream().filter(e -> e.type().equals(type)).findFirst().orElse(null);
 
-            LabelBox button = new LabelBox(width / 2 - 100, height / 2 - 15 + Y_OFFSETS[i], 200, 16, Component.translatable("create_fly_config_menu.ui." + type));
+            LabelBox button = new LabelBox(width / 2 - 100, height / 2 - 15 + Y_OFFSETS[i], 200, 16, Component.translatable("gravis_flying_config_menu.ui." + type));
             addRenderableWidget(button);
-            button.getToolTip().add(Component.translatable("create_fly_config_menu.ui." + type));
-            button.getToolTip().addAll(FontHelper.cutTextComponent(Component.translatable("create_fly_config_menu.ui." + type + ".tooltip"), FontHelper.Palette.ALL_GRAY));
+            button.getToolTip().add(Component.translatable("gravis_flying_config_menu.ui." + type));
+            button.getToolTip().addAll(FontHelper.cutTextComponent(Component.translatable("gravis_flying_config_menu.ui." + type + ".tooltip"), FontHelper.Palette.ALL_GRAY));
 
             if (entry != null) {
                 button.withCallback(() -> minecraft.gui.setScreen(new EditorScreen(this, entry)));
                 if (type.equals("server") && WorldState.current() == WorldState.REMOTE) {
-                    button.getToolTip().addAll(FontHelper.cutTextComponent(Component.translatable("create_fly_config_menu.ui.server_locked.tooltip"), FontHelper.Palette.GRAY_AND_GOLD));
+                    button.getToolTip().addAll(FontHelper.cutTextComponent(Component.translatable("gravis_flying_config_menu.ui.server_locked.tooltip"), FontHelper.Palette.GRAY_AND_GOLD));
                 }
             } else {
                 button.active = false;
                 button.updateGradientFromState();
-                button.getToolTip().addAll(FontHelper.cutTextComponent(Component.translatable("create_fly_config_menu.ui.no_config"), FontHelper.Palette.GRAY_AND_GOLD));
+                button.getToolTip().addAll(FontHelper.cutTextComponent(Component.translatable("gravis_flying_config_menu.ui.no_config"), FontHelper.Palette.GRAY_AND_GOLD));
             }
         }
 
@@ -66,10 +66,10 @@ public class RootScreen extends ConfigScreenBase {
         IconBox goBack = new IconBox(width / 2 - 134, height / 2, 20, 20, AllIcons.I_CONFIG_BACK);
         goBack.withPadding(2, 2);
         goBack.withCallback(() -> minecraft.gui.setScreen(parent));
-        goBack.getToolTip().add(Component.translatable("create_fly_config_menu.ui.go_back"));
+        goBack.getToolTip().add(Component.translatable("gravis_flying_config_menu.ui.go_back"));
         addRenderableWidget(goBack);
 
-        LabelBox others = new LabelBox(width / 2 - 100, height / 2 - 15 + 90, 200, 16, Component.translatable("create_fly_config_menu.ui.other_mods"));
+        LabelBox others = new LabelBox(width / 2 - 100, height / 2 - 15 + 90, 200, 16, Component.translatable("gravis_flying_config_menu.ui.other_mods"));
         others.withCallback(() -> minecraft.gui.setScreen(new ModListScreen(this)));
         addRenderableWidget(others);
     }
@@ -81,7 +81,7 @@ public class RootScreen extends ConfigScreenBase {
     /** "Access Configs for Mod:" on top of the banner, above the mod's name (drawn after the banner so it is not covered). */
     @Override
     protected void renderWindowForeground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
-        graphics.centeredText(font, Component.translatable("create_fly_config_menu.ui.title_prefix"), width / 2, height / 2 - 105, ConfigUi.TEXT_ACCENT);
+        graphics.centeredText(font, Component.translatable("gravis_flying_config_menu.ui.title_prefix"), width / 2, height / 2 - 105, ConfigUi.TEXT_ACCENT);
     }
 
     @Override

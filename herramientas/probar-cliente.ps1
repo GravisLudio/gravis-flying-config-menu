@@ -37,7 +37,7 @@ function Resumen {
     Write-Host '=== Avisos del log del juego ==='
     $juego = Join-Path $ejecucion 'logs\latest.log'
     if (Test-Path $juego) {
-        $avisos = Select-String -Path $juego -Pattern 'Exception|Mixin apply failed|InjectionError|Minecraft has crashed|flyconfigmenu|create_fly_config_menu' |
+        $avisos = Select-String -Path $juego -Pattern 'Exception|Mixin apply failed|InjectionError|Minecraft has crashed|flyconfigmenu|gravis_flying_config_menu' |
             Where-Object { $_.Line -notmatch 'NoSuchFileException' } | Select-Object -First 25 | ForEach-Object { $_.Line }
         if ($avisos) { $avisos | ForEach-Object { Write-Host $_ } } else { Write-Host '(ninguno)' }
     } else { Write-Host '(sin latest.log)' }

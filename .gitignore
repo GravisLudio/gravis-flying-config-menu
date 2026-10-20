@@ -24,3 +24,6 @@ __pycache__/
 # traspaso interno para chats de Claude (rutas locales y notas): no va al repo publico
 LEEME.md
 CLAUDE.md
+
+# paquete para publicar (jar, capturas, pasos para Gravis): no va al repo
+PUBLICACION/

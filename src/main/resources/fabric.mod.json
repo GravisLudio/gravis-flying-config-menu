@@ -10,7 +10,13 @@
   "contributors": [
     "ZurrTum (Create Fly)"
   ],
+  "contact": {
+    "homepage": "https://github.com/GravisLudio/gravis-flying-config-menu",
+    "sources": "https://github.com/GravisLudio/gravis-flying-config-menu",
+    "issues": "https://github.com/GravisLudio/gravis-flying-config-menu/issues"
+  },
   "license": "${mod_license}",
+  "icon": "assets/gravis_flying_config_menu/icon.png",
   "environment": "client",
   "entrypoints": {
     "client": [
@@ -21,7 +27,7 @@
     ]
   },
   "mixins": [
-    "create_fly_config_menu.mixins.json"
+    "gravis_flying_config_menu.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=${loader_version}",

@@ -194,7 +194,7 @@ public class EditorScreen extends ConfigScreenBase {
         int listR = width / 2 + listWidth / 2;
 
         IconBox resetAll = iconButton(listR + 10, yCenter - 25, AllIcons.I_CONFIG_RESET, "reset_all", () -> confirm(
-            Component.translatable("create_fly_config_menu.ui.resetting_message", Component.translatable("create_fly_config_menu.type." + entry.type())),
+            Component.translatable("gravis_flying_config_menu.ui.resetting_message", Component.translatable("gravis_flying_config_menu.type." + entry.type())),
             false, response -> {
                 if (response == ConfirmationDialog.Response.CONFIRM) {
                     stageDefaults();
@@ -207,7 +207,7 @@ public class EditorScreen extends ConfigScreenBase {
             if (changes.isEmpty()) {
                 return;
             }
-            confirm(Component.translatable("create_fly_config_menu.ui.saving_message", changes.size()), false, response -> {
+            confirm(Component.translatable("gravis_flying_config_menu.ui.saving_message", changes.size()), false, response -> {
                 if (response == ConfirmationDialog.Response.CONFIRM) {
                     saveChanges();
                 }
@@ -218,7 +218,7 @@ public class EditorScreen extends ConfigScreenBase {
             if (changes.isEmpty()) {
                 return;
             }
-            confirm(Component.translatable("create_fly_config_menu.ui.discarding_message", changes.size()), false, response -> {
+            confirm(Component.translatable("gravis_flying_config_menu.ui.discarding_message", changes.size()), false, response -> {
                 if (response == ConfirmationDialog.Response.CONFIRM) {
                     clearChanges();
                 }
@@ -227,7 +227,7 @@ public class EditorScreen extends ConfigScreenBase {
 
         iconButton(listL - 30, yCenter + 65, AllIcons.I_CONFIG_BACK, "go_back", this::attemptBackstep);
 
-        search = new EditBox(font, width / 2 - listWidth / 2, height - 35, listWidth, 20, Component.translatable("create_fly_config_menu.search"));
+        search = new EditBox(font, width / 2 - listWidth / 2, height - 35, listWidth, 20, Component.translatable("gravis_flying_config_menu.search"));
         search.setValue(searchText);
         search.setResponder(query -> {
             searchText = query.toLowerCase(Locale.ROOT);
@@ -235,7 +235,7 @@ public class EditorScreen extends ConfigScreenBase {
                 list.updateFilter(searchText);
             }
         });
-        search.setHint(Component.translatable("create_fly_config_menu.search"));
+        search.setHint(Component.translatable("gravis_flying_config_menu.search"));
         search.moveCursorToStart(false);
         addRenderableWidget(search);
 
@@ -249,8 +249,8 @@ public class EditorScreen extends ConfigScreenBase {
             locked.withPadding(2, 2);
             locked.withBorderColors(AbstractSimiWidget.COLOR_FAIL);
             locked.setTint(AbstractSimiWidget.COLOR_FAIL);
-            locked.getToolTip().add(Component.translatable("create_fly_config_menu.ui.server_locked"));
-            locked.getToolTip().addAll(FontHelper.cutTextComponent(Component.translatable("create_fly_config_menu.ui.server_locked.tooltip"), FontHelper.Palette.ALL_GRAY));
+            locked.getToolTip().add(Component.translatable("gravis_flying_config_menu.ui.server_locked"));
+            locked.getToolTip().addAll(FontHelper.cutTextComponent(Component.translatable("gravis_flying_config_menu.ui.server_locked.tooltip"), FontHelper.Palette.ALL_GRAY));
             addRenderableWidget(locked);
         }
         updateActionButtons();
@@ -260,8 +260,8 @@ public class EditorScreen extends ConfigScreenBase {
         IconBox button = new IconBox(x, y, 20, 20, icon);
         button.withPadding(2, 2);
         button.withCallback(callback);
-        button.getToolTip().add(Component.translatable("create_fly_config_menu.ui." + key));
-        button.getToolTip().addAll(FontHelper.cutTextComponent(Component.translatable("create_fly_config_menu.ui." + key + ".tooltip"), FontHelper.Palette.ALL_GRAY));
+        button.getToolTip().add(Component.translatable("gravis_flying_config_menu.ui." + key));
+        button.getToolTip().addAll(FontHelper.cutTextComponent(Component.translatable("gravis_flying_config_menu.ui." + key + ".tooltip"), FontHelper.Palette.ALL_GRAY));
         addRenderableWidget(button);
         return button;
     }
@@ -330,7 +330,7 @@ public class EditorScreen extends ConfigScreenBase {
             minecraft.gui.setScreen(parent);
             return;
         }
-        confirm(Component.translatable("create_fly_config_menu.ui.leaving_message", changes.size()), true, response -> {
+        confirm(Component.translatable("gravis_flying_config_menu.ui.leaving_message", changes.size()), true, response -> {
             if (response == ConfirmationDialog.Response.CANCEL) {
                 return;
             }

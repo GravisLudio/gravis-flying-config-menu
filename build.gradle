@@ -28,7 +28,7 @@ loom {
     runs {
         client {
             client()
-            name 'Create Fly Config Menu Client'
+            name 'Gravis Flying Config Menu Client'
         }
     }
 
@@ -160,6 +160,10 @@ tasks.withType(JavaCompile).configureEach {
 jar {
     from('LICENSE') {
         rename { "${it}_${base.archivesName.get()}" }
+    }
+    // The MIT notice of Catnip's config menu, whose design the screens follow, travels with the jar.
+    from('THIRD_PARTY_NOTICES.md') {
+        rename { "THIRD_PARTY_NOTICES_${base.archivesName.get()}.md" }
     }
 }
 

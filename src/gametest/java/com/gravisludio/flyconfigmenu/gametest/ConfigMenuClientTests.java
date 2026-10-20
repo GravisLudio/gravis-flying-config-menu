@@ -117,7 +117,7 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
         context.waitFor(mc -> mc.gui.overlay() == null);
         context.waitTicks(10);
         context.takeScreenshot("00-title-goggles");
-        context.clickScreenButton("create_fly_config_menu.goggles");
+        context.clickScreenButton("gravis_flying_config_menu.goggles");
         context.waitTicks(30);
         expect(context.computeOnClient(mc -> mc.gui.screen() instanceof CreateMenuScreen), "the goggles button did not open the Create menu");
         context.takeScreenshot("00b-create-menu");
