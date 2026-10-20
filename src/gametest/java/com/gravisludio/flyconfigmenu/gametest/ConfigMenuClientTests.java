@@ -16,6 +16,10 @@ import com.gravisludio.flyconfigmenu.ui.EditorScreen;
 import com.gravisludio.flyconfigmenu.ui.EntryList;
 import com.gravisludio.flyconfigmenu.ui.ModListScreen;
 import com.gravisludio.flyconfigmenu.ui.RootScreen;
+import com.gravisludio.flyconfigmenu.ui.menu.CreateMenuScreen;
+import com.gravisludio.flyconfigmenu.ui.menu.GogglesButton;
+import net.fabricmc.fabric.api.client.screen.v1.Screens;
+import net.minecraft.client.gui.screens.PauseScreen;
 import com.gravisludio.flyconfigmenu.ui.cog.CogShadow;
 import com.terraformersmc.modmenu.ModMenu;
 import com.zurrtum.create.catnip.config.Builder;
@@ -53,6 +57,7 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
         context.waitForScreen(TitleScreen.class);
         context.waitTicks(20);
 
+        step("goggles button and Create menu", () -> goggles(context));
         step("registry", this::registry);
         step("codecs", this::codecs);
         step("tree and editing", this::treeAndEditing);
@@ -72,6 +77,39 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
             failures.forEach(f -> log("FAIL: " + f));
             throw new AssertionError(failures.size() + " check(s) failed: " + failures);
         }
+    }
+
+    // ---- the goggles button on the title screen and the Create menu behind it --------------------------------------
+
+    private static boolean hasGoggles(ClientGameTestContext context) {
+        return context.computeOnClient(mc -> mc.gui.screen() != null
+            && Screens.getWidgets(mc.gui.screen()).stream().anyMatch(w -> w instanceof GogglesButton));
+    }
+
+    private void goggles(ClientGameTestContext context) {
+        expect(hasGoggles(context), "the title screen has no goggles button");
+        // The goggles are drawn once the loading overlay is gone; wait for it so the picture shows them.
+        context.waitFor(mc -> mc.gui.overlay() == null);
+        context.waitTicks(10);
+        context.takeScreenshot("00-title-goggles");
+        context.clickScreenButton("create_fly_config_menu.goggles");
+        context.waitTicks(30);
+        expect(context.computeOnClient(mc -> mc.gui.screen() instanceof CreateMenuScreen), "the goggles button did not open the Create menu");
+        context.takeScreenshot("00b-create-menu");
+        // Fabric's clickScreenButton fails on Create Fly's AbstractSimiScreen (IllegalAccessError inside the test API):
+        // click it with the simulated mouse instead, which is also closer to what a player does.
+        double[] pos = context.computeOnClient(mc -> {
+            net.minecraft.client.gui.components.Button button = ((CreateMenuScreen) mc.gui.screen()).configureButton();
+            double scale = mc.getWindow().getGuiScale();
+            return new double[]{(button.getX() + button.getWidth() / 2.0) * scale, (button.getY() + button.getHeight() / 2.0) * scale};
+        });
+        context.getInput().setCursorPos(pos[0], pos[1]);
+        context.getInput().pressMouse(0);
+        context.waitTicks(10);
+        expect(context.computeOnClient(mc -> mc.gui.screen() instanceof RootScreen), "Configure... did not open the config root screen");
+        context.takeScreenshot("00c-root-from-menu");
+        context.setScreen(() -> new TitleScreen());
+        context.waitTicks(10);
     }
 
     // ---- registry -------------------------------------------------------------------------------------------------
@@ -99,7 +137,8 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
         expect(Float.valueOf(1.5f).equals(ValueCodec.parseFloat("1.5")), "parseFloat 1.5 failed");
         expect(ValueCodec.parseFloat("NaN") == null && ValueCodec.parseFloat("x") == null, "parseFloat accepted garbage");
 
-        ConfigComment comment = ConfigComment.parse(List.of("Hello", "Default: 20", "Range: 5 ~ 9", "[@cui:RequiresRestart:both]", "[@cui:RequiresRelog] Rejoin", "[@cui:IntDisplay:#]"));
+        ConfigComment comment = ConfigComment.parse(List.of("Hello", "[in Blocks]", "Default: 20", "Range: 5 ~ 9", "[@cui:RequiresRestart:both]", "[@cui:RequiresRelog] Rejoin", "[@cui:IntDisplay:#]"));
+        expect("in Blocks".equals(comment.unit()), "the unit line was not read: " + comment.unit());
         expect(comment.lines().equals(List.of("Hello", "Rejoin")), "comment lines were " + comment.lines());
         expect("both".equals(comment.restart()) && comment.relog() && "#".equals(comment.intDisplay()), "comment annotations were not read: " + comment);
         expect(!WorldState.REMOTE.canEditServerConfig() && WorldState.NO_WORLD.canEditServerConfig() && WorldState.SINGLEPLAYER.canEditServerConfig(),
@@ -481,6 +520,12 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
                     context.takeScreenshot("21-remote-editor-locked");
                     context.runOnClient(mc -> editor.saveChanges());
                 }
+
+                // The goggles button is in the pause menu too.
+                context.setScreen(() -> new PauseScreen(true));
+                context.waitTicks(10);
+                expect(hasGoggles(context), "the pause menu has no goggles button");
+                context.takeScreenshot("22-pause-goggles");
 
                 // The client's own (client) file stays editable on a remote server.
                 context.setScreen(() -> new EditorScreen(Minecraft.getInstance().gui.screen(), create("client")));

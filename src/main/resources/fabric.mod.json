@@ -28,6 +28,7 @@
     "minecraft": "${minecraft_version_range}",
     "java": ">=25",
     "fabric-rendering-v1": "*",
+    "fabric-screen-api-v1": "*",
     "create": "${create_version_range}"
   }
 }

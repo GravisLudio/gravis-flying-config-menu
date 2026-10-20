@@ -70,7 +70,25 @@ public final class CogShadow {
         float scale = side / 2.3f;
         ScreenRectangle scissor = graphics.scissorStack.peek();
         graphics.guiRenderState.addPicturesInPictureState(new CogShadowRenderState(
-            block, SPIN.getValue(partialTicks), x0, y0, x0 + side, y0 + side, scale, scissor,
+            block, 22.5f, SPIN.getValue(partialTicks), 22.5f, tint, x0, y0, x0 + side, y0 + side, scale, scissor,
+            PictureInPictureRenderState.getBounds(x0, y0, x0 + side, y0 + side, scissor)
+        ));
+    }
+
+    /**
+     * Draws any block, centred on (cx, cy), in a square of {@code side} GUI pixels: for the cogs of the Create menu.
+     * Nothing is drawn after a drawing error switched the renderer off.
+     */
+    public static void renderBlock(GuiGraphicsExtractor graphics, BlockState state, int cx, int cy, int side, float pixelsPerBlock,
+                                   float xRot, float yRot, float zRot, int tint) {
+        if (disabled) {
+            return;
+        }
+        int x0 = cx - side / 2;
+        int y0 = cy - side / 2;
+        ScreenRectangle scissor = graphics.scissorStack.peek();
+        graphics.guiRenderState.addPicturesInPictureState(new CogShadowRenderState(
+            state, xRot, yRot, zRot, tint, x0, y0, x0 + side, y0 + side, pixelsPerBlock, scissor,
             PictureInPictureRenderState.getBounds(x0, y0, x0 + side, y0 + side, scissor)
         ));
     }

@@ -3,10 +3,8 @@ package com.gravisludio.flyconfigmenu.ui;
 import com.gravisludio.flyconfigmenu.ConfigMenu;
 import com.gravisludio.flyconfigmenu.config.ConfigRegistry;
 import com.gravisludio.flyconfigmenu.config.WorldState;
-import com.gravisludio.flyconfigmenu.ui.cog.CogShadow;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.zurrtum.create.catnip.theme.Color;
-import com.zurrtum.create.client.catnip.gui.AbstractSimiScreen;
 import com.zurrtum.create.client.catnip.gui.widget.AbstractSimiWidget;
 import com.zurrtum.create.client.catnip.gui.widget.BoxWidget;
 import com.zurrtum.create.client.catnip.lang.FontHelper;
@@ -24,7 +22,7 @@ import java.util.List;
  * The first screen of a mod's config, like Create's own: a gradient title and one button for each config file it has
  * (client, common, server), plus a way to the other mods.
  */
-public class RootScreen extends AbstractSimiScreen {
+public class RootScreen extends ConfigScreenBase {
     private static final List<String> TYPES = List.of("client", "common", "server");
     private static final int[] Y_OFFSETS = {-30, 0, 30};
 
@@ -77,20 +75,13 @@ public class RootScreen extends AbstractSimiScreen {
     }
 
     @Override
-    protected void renderWindowBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
-        super.renderWindowBackground(graphics, mouseX, mouseY, partialTicks);
-        CogShadow.render(graphics, width, height, partialTicks);
-    }
-
-    @Override
-    public void tick() {
-        super.tick();
-        CogShadow.tick();
-    }
-
-    @Override
     protected void renderWindow(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
-        graphics.centeredText(font, Component.translatable("create_fly_config_menu.ui.other_mods.title"), width / 2, height / 2 + 62, ConfigUi.TEXT_ACCENT);
+    }
+
+    /** "Access Configs for Mod:" on top of the banner, above the mod's name (drawn after the banner so it is not covered). */
+    @Override
+    protected void renderWindowForeground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
+        graphics.centeredText(font, Component.translatable("create_fly_config_menu.ui.title_prefix"), width / 2, height / 2 - 105, ConfigUi.TEXT_ACCENT);
     }
 
     @Override
@@ -108,11 +99,6 @@ public class RootScreen extends AbstractSimiScreen {
     @Override
     public void onClose() {
         minecraft.gui.setScreen(parent);
-    }
-
-    @Override
-    public boolean isPauseScreen() {
-        return true;
     }
 
     /** The wide banner with the mod's name in Create's pastel gradient, drawn at double size. */
@@ -137,7 +123,8 @@ public class RootScreen extends AbstractSimiScreen {
             super.doRender(graphics, mouseX, mouseY, partialTicks);
             int total = font.width(text) * 2;
             float cursor = getX() + (width - total) / 2f;
-            float textY = getY() + (height - font.lineHeight * 2) / 2f + 2;
+            // Lower half of the banner: the top line holds "Access Configs for Mod:".
+            float textY = getY() + height - 4 - font.lineHeight * 2;
             int count = text.length();
             graphics.pose().pushMatrix();
             graphics.pose().translate(cursor, textY);

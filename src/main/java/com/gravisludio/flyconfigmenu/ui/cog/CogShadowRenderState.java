@@ -6,14 +6,21 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.Nullable;
 
 /**
- * One frame of the cog behind the config screens.
+ * One block drawn in the GUI through {@link CogShadowRenderer}: the shadow cog behind the config screens and the cogs of
+ * the Create menu.
  *
- * @param spin  rotation around the cog's own axis, in degrees
+ * @param xRot  rotation around X, in degrees (applied after Z)
+ * @param yRot  rotation around the block's own vertical axis, in degrees (the spin of a cog)
+ * @param zRot  rotation around Z, in degrees (applied first)
+ * @param tint  ARGB the drawn texture is multiplied by: {@code 0x60000000} gives a translucent black silhouette, {@code -1} the block as it is
  * @param scale GUI pixels per block
  */
 public record CogShadowRenderState(
     BlockState block,
-    float spin,
+    float xRot,
+    float yRot,
+    float zRot,
+    int tint,
     int x0,
     int y0,
     int x1,

@@ -60,7 +60,11 @@ public final class EntryList extends ContainerObjectSelectionList<EntryList.Row>
         clearEntries();
         GroupNode group = screen.currentGroup();
         String path = screen.currentPath();
-        for (ConfigNode node : group.children()) {
+        // Like Create's menu: the groups first, then the options, each alphabetically by the name shown.
+        List<ConfigNode> ordered = new ArrayList<>(group.children());
+        ordered.sort(java.util.Comparator.comparing((ConfigNode n) -> n instanceof LeafNode)
+            .thenComparing(n -> ConfigUi.humanize(n.name()), String.CASE_INSENSITIVE_ORDER));
+        for (ConfigNode node : ordered) {
             if (!accepts(node)) {
                 continue;
             }
@@ -320,6 +324,12 @@ public final class EntryList extends ContainerObjectSelectionList<EntryList.Row>
             updateResetButton();
         }
 
+        /** With a unit under it, the name moves up, as in Create's menu. */
+        @Override
+        protected int labelYOffset() {
+            return super.labelYOffset() + (leaf.comment().unit() == null ? 0 : 6);
+        }
+
         @Override
         public void refresh() {
             onValueChange(value());
@@ -356,6 +366,12 @@ public final class EntryList extends ContainerObjectSelectionList<EntryList.Row>
             }
 
             super.extractContent(graphics, mouseX, mouseY, hovered, partialTick);
+
+            String unit = leaf.comment().unit();
+            if (unit != null) {
+                Font font = Minecraft.getInstance().font;
+                graphics.text(font, unit, getX() + labelWidth(getWidth()) - font.width(unit) - 5, getY() + getHeight() / 2 + 2, ConfigUi.TEXT_DARKER, false);
+            }
 
             resetButton.setX(getX() + getWidth() - RESET_WIDTH + 6);
             resetButton.setY(getY() + 10);

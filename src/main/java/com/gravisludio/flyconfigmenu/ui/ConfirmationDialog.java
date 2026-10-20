@@ -1,6 +1,5 @@
 package com.gravisludio.flyconfigmenu.ui;
 
-import com.zurrtum.create.client.catnip.gui.AbstractSimiScreen;
 import com.zurrtum.create.client.catnip.gui.element.BoxElement;
 import com.zurrtum.create.client.catnip.gui.element.RenderElement;
 import com.zurrtum.create.client.catnip.gui.widget.AbstractSimiWidget;
@@ -13,7 +12,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /** The question strip Create's config menu shows over a dimmed screen: a text and two or three buttons. */
-public class ConfirmationDialog extends AbstractSimiScreen {
+public class ConfirmationDialog extends ConfigScreenBase {
     public enum Response {
         CONFIRM, DONT_SAVE, CANCEL
     }

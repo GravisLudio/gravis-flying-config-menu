@@ -61,9 +61,9 @@ public final class CogShadowRenderer extends PictureInPictureRenderer<CogShadowR
     @Override
     protected void renderToTexture(CogShadowRenderState state, PoseStack poseStack, SubmitNodeCollector collector) {
         poseStack.pushPose();
-        poseStack.mulPose(Axis.ZP.rotationDegrees(22.5f));
-        poseStack.mulPose(Axis.XP.rotationDegrees(22.5f));
-        poseStack.mulPose(Axis.YP.rotationDegrees(state.spin()));
+        poseStack.mulPose(Axis.ZP.rotationDegrees(state.zRot()));
+        poseStack.mulPose(Axis.XP.rotationDegrees(state.xRot()));
+        poseStack.mulPose(Axis.YP.rotationDegrees(state.yRot()));
         poseStack.translate(-0.5f, -0.5f, -0.5f);
         // Minecraft's own block-model path: unlike Create Fly's CachedBuffers (which need Flywheel's state from a loaded
         // world and crash at the title screen), this works on any screen. Light and color do not matter: only the
@@ -103,7 +103,7 @@ public final class CogShadowRenderer extends PictureInPictureRenderer<CogShadowR
             1.0F,
             1.0F,
             0.0F,
-            CogShadow.tint(),
+            state.tint(),
             state.scissorArea(),
             null
         ));

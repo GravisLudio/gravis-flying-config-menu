@@ -104,6 +104,8 @@ dependencies {
     implementation fabricApi.module("fabric-api-base", fabric_api_version)
     // PictureInPictureRendererRegistry: draws the cog behind the screens.
     implementation fabricApi.module("fabric-rendering-v1", fabric_api_version)
+    // ScreenEvents / Screens: the goggles button on the title screen and the pause menu.
+    implementation fabricApi.module("fabric-screen-api-v1", fabric_api_version)
     runtimeOnly "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
 
     // Create Fly embebe Flywheel, Ponder y Catnip (aqui vive `catnip.config`). Va con `implementation`: sin remapeo.

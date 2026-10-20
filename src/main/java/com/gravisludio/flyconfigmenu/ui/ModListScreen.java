@@ -2,10 +2,8 @@ package com.gravisludio.flyconfigmenu.ui;
 
 import com.gravisludio.flyconfigmenu.ConfigMenu;
 import com.gravisludio.flyconfigmenu.config.ConfigRegistry;
-import com.gravisludio.flyconfigmenu.ui.cog.CogShadow;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.zurrtum.create.catnip.theme.Color;
-import com.zurrtum.create.client.catnip.gui.AbstractSimiScreen;
 import com.zurrtum.create.client.catnip.gui.UIRenderHelper;
 import com.zurrtum.create.client.foundation.gui.AllIcons;
 import net.minecraft.ChatFormatting;
@@ -24,7 +22,7 @@ import java.util.List;
 import java.util.Locale;
 
 /** Every mod whose config this menu found, one row each, like Create's "other mods" list. */
-public class ModListScreen extends AbstractSimiScreen {
+public class ModListScreen extends ConfigScreenBase {
     private final Screen parent;
     private ModList list;
     private EditBox search;
@@ -64,24 +62,6 @@ public class ModListScreen extends AbstractSimiScreen {
     }
 
     @Override
-    protected void renderWindowBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
-        super.renderWindowBackground(graphics, mouseX, mouseY, partialTicks);
-        CogShadow.render(graphics, width, height, partialTicks);
-    }
-
-    @Override
-    public void tick() {
-        super.tick();
-        CogShadow.tick();
-    }
-
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        CogShadow.bump((float) (-scrollY * 5));
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
-    }
-
-    @Override
     protected void renderWindow(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
         if (ConfigRegistry.modIds().isEmpty()) {
             graphics.centeredText(font, Component.translatable("create_fly_config_menu.screen.empty"), width / 2, height / 2, ConfigUi.TEXT);
@@ -109,10 +89,6 @@ public class ModListScreen extends AbstractSimiScreen {
         minecraft.gui.setScreen(parent);
     }
 
-    @Override
-    public boolean isPauseScreen() {
-        return true;
-    }
 
     private final class ModList extends ContainerObjectSelectionList<ModList.Row> {
         ModList(int width, int height, int top, int rowHeight, String filter) {

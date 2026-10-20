@@ -18,9 +18,11 @@ import java.util.regex.Pattern;
  * @param restart {@code client}, {@code server} or {@code both} when changing the value needs a restart, else {@code null}
  * @param relog   whether the player has to rejoin the world for it to take effect
  * @param intDisplay {@code #}, {@code 0x} or {@code 0b} when an integer should be shown in hexadecimal or binary, else {@code null}
+ * @param unit    the unit Create writes as a line of its own in brackets ({@code [in Blocks]}, {@code [in Ticks]}), shown under
+ *                the option's name like Create's menu did; {@code null} when there is none
  */
-public record ConfigComment(List<String> lines, String restart, boolean relog, String intDisplay) {
-    public static final ConfigComment EMPTY = new ConfigComment(List.of(), null, false, null);
+public record ConfigComment(List<String> lines, String restart, boolean relog, String intDisplay, String unit) {
+    public static final ConfigComment EMPTY = new ConfigComment(List.of(), null, false, null, null);
 
     private static final Pattern ANNOTATION = Pattern.compile("\\[@cui:(\\w+)(?::([^\\]]*))?]");
 
@@ -43,6 +45,7 @@ public record ConfigComment(List<String> lines, String restart, boolean relog, S
         String restart = null;
         boolean relog = false;
         String intDisplay = null;
+        String unit = null;
         for (String line : raw) {
             Matcher matcher = ANNOTATION.matcher(line);
             while (matcher.find()) {
@@ -59,9 +62,13 @@ public record ConfigComment(List<String> lines, String restart, boolean relog, S
             if (text.isEmpty() || isGenerated(text)) {
                 continue;
             }
+            if (unit == null && text.length() > 2 && text.startsWith("[") && text.endsWith("]")) {
+                unit = text.substring(1, text.length() - 1).strip();
+                continue;
+            }
             lines.add(text);
         }
-        return new ConfigComment(List.copyOf(lines), restart, relog, intDisplay);
+        return new ConfigComment(List.copyOf(lines), restart, relog, intDisplay, unit);
     }
 
     private static boolean isGenerated(String line) {

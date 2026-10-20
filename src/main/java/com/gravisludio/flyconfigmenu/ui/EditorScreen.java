@@ -8,9 +8,7 @@ import com.gravisludio.flyconfigmenu.config.ConfigTrees;
 import com.gravisludio.flyconfigmenu.config.GroupNode;
 import com.gravisludio.flyconfigmenu.config.LeafNode;
 import com.gravisludio.flyconfigmenu.config.WorldState;
-import com.gravisludio.flyconfigmenu.ui.cog.CogShadow;
 import com.mojang.blaze3d.platform.InputConstants;
-import com.zurrtum.create.client.catnip.gui.AbstractSimiScreen;
 import com.zurrtum.create.client.catnip.gui.widget.AbstractSimiWidget;
 import com.zurrtum.create.client.catnip.lang.FontHelper;
 import com.zurrtum.create.client.foundation.gui.AllIcons;
@@ -37,7 +35,7 @@ import java.util.Objects;
  * player is connected to someone else's server, because Create Fly then holds the remote server's values in memory and
  * saving would put them into the local file.
  */
-public class EditorScreen extends AbstractSimiScreen {
+public class EditorScreen extends ConfigScreenBase {
     /** An edit waiting for save. */
     public record Staged(LeafNode leaf, Object value) {
     }
@@ -285,23 +283,10 @@ public class EditorScreen extends AbstractSimiScreen {
     @Override
     public void tick() {
         super.tick();
-        CogShadow.tick();
         updateActionButtons();
         if (list != null) {
             list.tickRows();
         }
-    }
-
-    @Override
-    protected void renderWindowBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTicks) {
-        super.renderWindowBackground(graphics, mouseX, mouseY, partialTicks);
-        CogShadow.render(graphics, width, height, partialTicks);
-    }
-
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        CogShadow.bump((float) (-scrollY * 5));
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override
@@ -310,7 +295,8 @@ public class EditorScreen extends AbstractSimiScreen {
     }
 
     private String breadcrumbs() {
-        StringBuilder crumbs = new StringBuilder(ConfigMenu.displayName(entry.modId())).append(" > ").append(entry.type());
+        // The mod id, like Create's menu ("create > client > ..."), not its display name.
+        StringBuilder crumbs = new StringBuilder(entry.modId()).append(" > ").append(entry.type());
         for (int i = 1; i < trail.size(); i++) {
             crumbs.append(" > ").append(trail.get(i).name());
         }
@@ -361,8 +347,4 @@ public class EditorScreen extends AbstractSimiScreen {
         attemptBackstep();
     }
 
-    @Override
-    public boolean isPauseScreen() {
-        return true;
-    }
 }
