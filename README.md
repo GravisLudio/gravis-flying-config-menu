@@ -32,7 +32,8 @@ The jar is `build\libs\gravis-flying-config-menu-26.2-<version>.jar`.
 opens every screen, edits values, opens a single-player world to check that saved values change the game (maximum
 rotation speed, windmill sails per RPM, windmill advancements) and, if `eula=true` is in
 `build\run\clientGameTest\eula.txt`, connects to a local dedicated server to check that the server file is
-read-only there. Screenshots go to `build\run\clientGameTest\screenshots`.
+read-only there. Screenshots go to `build\run\clientGameTest\screenshots`. `-SinModMenu` runs it without Mod Menu,
+which is optional.
 
 ## License
 
