@@ -1,5 +1,6 @@
-"""Logo for Create: Gravis's Flying Config Menu: a grey button with brass goggles, like the in-game goggles button.
-Our own pixel art drawn here from shapes (Create's goggles texture is All Rights Reserved, so it is not used).
+"""Logo for Create: Gravis's Flying Config Menu: a grey button with goggles, like the in-game goggles button.
+Our own pixel art drawn here from shapes: a leather strap arching over two oval brass-rimmed lenses, the same kind of
+goggles the button shows. Create's goggles texture is All Rights Reserved, so no pixel of it is used.
 Drawn at 32x32 and scaled with nearest neighbour so the pixels stay sharp.
 Usage: python herramientas/hacer-logo.py <output folder>  (then copy icon_512.png to docs/ and icon_128.png to
 src/main/resources/assets/gravis_flying_config_menu/icon.png)."""
@@ -31,50 +32,59 @@ for y in range(N):
             c = "#727272"
         px[x, y] = hexc(c)
 
-# Strap behind the lenses.
-for x in range(2, N - 2):
-    px[x, 15] = hexc("#6A4A2C")
-    px[x, 16] = hexc("#4A321C")
-    px[x, 17] = hexc("#33220F")
+LEATHER_LIGHT, LEATHER, LEATHER_DARK = hexc("#94603A"), hexc("#6E4024"), hexc("#3F2210")
+OUTLINE = hexc("#34190B")
+RIM_LIGHT, RIM, RIM_DARK = hexc("#F8E38C"), hexc("#E2B95A"), hexc("#B47A36")
+GLASS_DARK, GLASS, GLASS_LIGHT, GLINT = hexc("#356A7B"), hexc("#4C8D9F"), hexc("#73AABA"), hexc("#D8F2F7")
+BRIDGE = hexc("#5C2C1C")
 
-RIM_LIGHT, RIM_MID, RIM_DARK, OUTLINE = hexc("#F4D06A"), hexc("#C8932E"), hexc("#7E561A"), hexc("#2E1E0C")
-GLASS_LIGHT, GLASS_MID, GLASS_DARK, GLINT = hexc("#9BE6F0"), hexc("#4DB4CB"), hexc("#25657E"), hexc("#F2FDFF")
+
+def inside(x, y, cx, cy, rx, ry):
+    dx, dy = (x + 0.5 - cx) / rx, (y + 0.5 - cy) / ry
+    return dx * dx + dy * dy <= 1.0
+
+
+# Strap: the upper part of an elliptical band behind the lenses, lighter on its top edge.
+SCX, SCY = 16.0, 19.0
+for y in range(N):
+    for x in range(N):
+        if y + 0.5 > 19.5:
+            continue
+        outer = inside(x, y, SCX, SCY, 12.2, 12.0)
+        inner = inside(x, y, SCX, SCY, 9.0, 8.8)
+        if outer and not inner:
+            edge_out = not inside(x, y, SCX, SCY, 11.2, 11.0)
+            edge_in = inside(x, y, SCX, SCY, 9.9, 9.7)
+            px[x, y] = LEATHER_DARK if edge_out else LEATHER_LIGHT if edge_in else LEATHER
 
 
 def lens(cx, cy):
+    rx, ry = 6.2, 4.6
     for y in range(N):
         for x in range(N):
+            if not inside(x, y, cx, cy, rx, ry):
+                continue
             dx, dy = x + 0.5 - cx, y + 0.5 - cy
-            d = math.hypot(dx, dy)
-            # Light comes from the top left: -1 there, +1 at the bottom right.
-            shade = (dx + dy) / (math.hypot(dx, dy) * math.sqrt(2)) if d > 0 else 0
-            if d <= 3.7:
-                if shade < -0.35 and d > 1.2:
-                    c = GLASS_LIGHT
-                elif shade > 0.35 and d > 1.2:
-                    c = GLASS_DARK
-                else:
-                    c = GLASS_MID
-                px[x, y] = c
-            elif d <= 5.4:
-                px[x, y] = RIM_LIGHT if shade < -0.3 else RIM_DARK if shade > 0.45 else RIM_MID
-            elif d <= 6.3:
+            if not inside(x, y, cx, cy, rx - 1.0, ry - 1.0):
                 px[x, y] = OUTLINE
-    # A small glint on the glass.
-    gx, gy = int(cx - 2), int(cy - 2)
-    px[gx, gy] = GLINT
-    px[gx + 1, gy] = GLINT
-    px[gx, gy + 1] = GLINT
+            elif not inside(x, y, cx, cy, rx - 2.4, ry - 2.3):
+                # Brass rim, lit from the top left.
+                t = (dx / rx + dy / ry)
+                px[x, y] = RIM_LIGHT if t < -0.45 else RIM_DARK if t > 0.55 else RIM
+            else:
+                px[x, y] = GLASS_DARK if dy < -0.6 else GLASS_LIGHT if dy > 0.6 and dx > 0 else GLASS
+    px[int(cx - 2), int(cy - 1)] = GLINT
 
 
-lens(9.5, 16.0)
-lens(22.5, 16.0)
+lens(9.6, 20.0)
+lens(22.4, 20.0)
 
-# Bridge between the lenses.
-px[15, 14] = RIM_LIGHT
-px[16, 14] = RIM_LIGHT
-px[15, 15] = RIM_DARK
-px[16, 15] = RIM_DARK
+# Leather bridge between the lenses.
+for x in (15, 16):
+    for y in (18, 19, 20):
+        px[x, y] = BRIDGE
+px[15, 18] = LEATHER
+px[16, 18] = LEATHER
 
 out = pathlib.Path(sys.argv[1])
 out.mkdir(parents=True, exist_ok=True)
