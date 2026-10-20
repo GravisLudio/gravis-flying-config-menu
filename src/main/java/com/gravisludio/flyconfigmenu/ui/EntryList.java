@@ -271,6 +271,11 @@ public final class EntryList extends ContainerObjectSelectionList<EntryList.Row>
             updateResetButton();
         }
 
+        /** For tests: the option this row edits. */
+        public LeafNode leaf() {
+            return leaf;
+        }
+
         private static List<Component> extraTooltip(LeafNode leaf) {
             List<Component> extra = new ArrayList<>();
             extra.add(Component.translatable("create_fly_config_menu.default", String.valueOf(leaf.defaultValue())).withStyle(ChatFormatting.DARK_AQUA));

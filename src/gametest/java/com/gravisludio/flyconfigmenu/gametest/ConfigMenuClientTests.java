@@ -22,15 +22,37 @@ import net.fabricmc.fabric.api.client.screen.v1.Screens;
 import net.minecraft.client.gui.screens.PauseScreen;
 import com.gravisludio.flyconfigmenu.ui.cog.CogShadow;
 import com.terraformersmc.modmenu.ModMenu;
+import com.zurrtum.create.AllBlocks;
 import com.zurrtum.create.catnip.config.Builder;
+import com.zurrtum.create.content.contraptions.bearing.BearingContraption;
+import com.zurrtum.create.content.contraptions.bearing.WindmillBearingBlockEntity;
+import com.zurrtum.create.content.kinetics.base.KineticBlockEntity;
+import com.zurrtum.create.content.kinetics.motor.CreativeMotorBlockEntity;
 import com.zurrtum.create.infrastructure.config.AllConfigs;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerConnection;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestDedicatedServerContext;
+import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
+import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.advancements.AdvancementHolder;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,7 +69,9 @@ import java.util.Map;
  * the {@code [CFCM-TEST]} markers: the checks are collected and the test fails at the end, so one run reports everything
  * that is wrong. Screenshots: {@code build/run/clientGameTest/screenshots}.
  *
- * <p>What this cannot check: the read-only server file on a REMOTE server (needs a second machine or a dedicated server).
+ * <p>The "gameplay" step opens a singleplayer world and checks that values saved in the menu change the game (Create's
+ * maximum rotation speed breaks a too-fast shaft, the windmill speed follows the sails per RPM) and that the windmill
+ * advancements are still given. The "remote server" step needs {@code eula=true} in the run folder.
  */
 public class ConfigMenuClientTests implements FabricClientGameTest {
     private final List<String> failures = new ArrayList<>();
@@ -66,6 +90,7 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
         step("screens", () -> screens(context));
         step("Mod Menu", () -> modMenu(context));
         step("addons", () -> addons(context));
+        step("gameplay", () -> gameplay(context));
         step("remote server", () -> remoteServer(context));
 
         context.runOnClient(mc -> mc.gui.setScreen(null));
@@ -474,6 +499,217 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
         }
         context.runOnClient(mc -> mc.gui.setScreen(null));
         context.waitTicks(5);
+    }
+
+    // ---- gameplay: a value changed in the menu changes the game, and Create's advancements still come --------------
+
+    private void gameplay(ClientGameTestContext context) throws IOException {
+        ConfigRegistry.Entry serverEntry = create("server");
+        try (TestSingleplayerContext world = context.worldBuilder().create()) {
+            world.getConnection().waitForChunksRender();
+            context.waitTicks(20);
+            WorldState state = context.computeOnClient(mc -> WorldState.current());
+            log("singleplayer world: world state " + state);
+            expect(state == WorldState.SINGLEPLAYER, "in a singleplayer world the world state is " + state);
+
+            TestServerContext server = world.getServer();
+            ServerPlayer player = server.computeOnServer(s -> world.getConnection().getServerPlayer());   // server thread only
+            // The first free block above the ground next to the player; the machines are built from there.
+            BlockPos base = server.computeOnServer(s -> s.overworld().getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, player.blockPosition()));
+            // A glass block to stand on, a little back and up, so the screenshots show both machines from above.
+            BlockPos camera = base.offset(-6, 3, 1);
+            server.runOnServer(s -> s.overworld().setBlockAndUpdate(camera, Blocks.GLASS.defaultBlockState()));
+            server.runCommand("tp @a " + (camera.getX() + 0.5) + " " + (camera.getY() + 1) + " " + (camera.getZ() + 0.5) + " -90 25");
+            context.waitTicks(10);
+            try {
+                maxRotationSpeed(context, server, serverEntry, base);
+                windmill(context, world, serverEntry, player, base);
+            } finally {
+                // Whatever happened, the next steps and the next run start from Create's defaults.
+                ConfigTrees.Tree tree = ConfigTrees.readForEditing(serverEntry);
+                find(tree.root(), "kinetics", "maxRotationSpeed").reset();
+                find(tree.root(), "kinetics", "windmillSailsPerRPM").reset();
+                context.runOnClient(mc -> mc.gui.setScreen(null));
+            }
+        }
+        context.waitForScreen(TitleScreen.class);
+        context.waitTicks(10);
+    }
+
+    /**
+     * A creative motor turns a line of shafts at 128 RPM. Create breaks a block that a too-fast network reaches
+     * ({@code RotationPropagator}: faster than {@code kinetics.maxRotationSpeed}), so with the default limit of 256 a shaft
+     * added to the line turns, with the limit lowered to 64 IN THE MENU the next shaft breaks, and back at 256 it turns again.
+     */
+    private void maxRotationSpeed(ClientGameTestContext context, TestServerContext server, ConfigRegistry.Entry entry, BlockPos base) throws IOException {
+        expect(AllConfigs.server().kinetics.maxRotationSpeed.get() == 256, "the maximum speed does not start at 256 but " + AllConfigs.server().kinetics.maxRotationSpeed.get());
+        BlockPos motor = base.offset(4, 0, -5);
+        server.runOnServer(s -> {
+            ServerLevel level = s.overworld();
+            level.setBlockAndUpdate(motor, AllBlocks.CREATIVE_MOTOR.defaultBlockState().setValue(BlockStateProperties.FACING, Direction.EAST));
+            for (int i = 1; i <= 3; i++) {
+                level.setBlockAndUpdate(motor.east(i), shaft());
+            }
+        });
+        context.waitTicks(10);
+        server.runOnServer(s -> ((CreativeMotorBlockEntity) s.overworld().getBlockEntity(motor)).generatedSpeed.setValue(128));
+        context.waitTicks(10);
+        float lineSpeed = server.computeOnServer(s -> speedAt(s, motor.east(3)));
+        log("motor line turns at " + lineSpeed + " RPM");
+        expect(Math.abs(lineSpeed) == 128, "the shaft line does not turn at 128 RPM but " + lineSpeed);
+        context.takeScreenshot("40-gameplay-motor-128rpm");
+
+        expect(placeShaft(context, server, motor.east(4)), "with the limit at 256 a shaft added to the 128 RPM line broke");
+
+        editThroughMenu(context, entry, "kinetics", "maxRotationSpeed", "64", "41-gameplay-menu-max-64");
+        expect(AllConfigs.server().kinetics.maxRotationSpeed.get() == 64, "after saving 64 in the menu Create reads " + AllConfigs.server().kinetics.maxRotationSpeed.get());
+        expect(optionOnDisk(entry, "kinetics", "maxRotationSpeed") == 64, "after saving 64 in the menu the file has " + optionOnDisk(entry, "kinetics", "maxRotationSpeed"));
+        boolean survived = placeShaft(context, server, motor.east(5));
+        log("limit 64: the shaft added to the 128 RPM line " + (survived ? "SURVIVED" : "broke, as Create does when a network is too fast"));
+        expect(!survived, "with the limit lowered to 64 in the menu a shaft at 128 RPM did not break");
+        context.takeScreenshot("42-gameplay-shaft-broke");
+
+        editThroughMenu(context, entry, "kinetics", "maxRotationSpeed", "256", null);
+        expect(AllConfigs.server().kinetics.maxRotationSpeed.get() == 256, "after saving 256 in the menu Create reads " + AllConfigs.server().kinetics.maxRotationSpeed.get());
+        expect(placeShaft(context, server, motor.east(5)), "with the limit back at 256 the shaft broke again");
+    }
+
+    /**
+     * A windmill placed by the player, as in the game: the bearing remembers who placed it, a right click with an empty hand
+     * assembles it, and Create gives the "windmill" advancement (and "windmill_maxed" from 128 sails). The windmill's speed
+     * is sails / {@code kinetics.windmillSailsPerRPM}, between 1 and 16: 169 sails give 16 with the default 8, and 5 after
+     * setting 32 in the menu and assembling it again.
+     */
+    private void windmill(ClientGameTestContext context, TestSingleplayerContext world, ConfigRegistry.Entry entry, ServerPlayer player, BlockPos base) throws IOException {
+        TestServerContext server = world.getServer();
+        expect(!advancementDone(server, player, "windmill") && !advancementDone(server, player, "windmill_maxed"), "the new world already has the windmill advancements");
+        BlockPos bearing = base.offset(14, 0, 3);
+        server.runOnServer(s -> {
+            ServerLevel level = s.overworld();
+            BlockState state = AllBlocks.WINDMILL_BEARING.defaultBlockState().setValue(BlockStateProperties.FACING, Direction.UP);
+            level.setBlockAndUpdate(bearing, state);
+            // What placing it by hand does after the block is set: Create notes the player, to give them the advancements.
+            state.getBlock().setPlacedBy(level, bearing, state, player, new ItemStack(AllBlocks.WINDMILL_BEARING));
+            BlockState sail = AllBlocks.SAIL_FRAME.defaultBlockState().setValue(BlockStateProperties.FACING, Direction.UP);
+            for (int dx = -6; dx <= 6; dx++) {
+                for (int dz = -6; dz <= 6; dz++) {
+                    level.setBlockAndUpdate(bearing.offset(dx, 1, dz), sail);
+                }
+            }
+        });
+        context.waitTicks(10);
+
+        rightClick(server, player, bearing);
+        context.waitTicks(20);
+        int[] sails = new int[1];
+        float speed = server.computeOnServer(s -> {
+            WindmillBearingBlockEntity be = (WindmillBearingBlockEntity) s.overworld().getBlockEntity(bearing);
+            if (be.getLastAssemblyException() != null) {
+                log("windmill did not assemble: " + be.getLastAssemblyException().getMessage());
+            }
+            sails[0] = be.isRunning() && be.getMovedContraption() != null ? ((BearingContraption) be.getMovedContraption().getContraption()).getSailBlocks() : -1;
+            return be.getSpeed();
+        });
+        log("windmill assembled with " + sails[0] + " sails, turns at " + speed + " RPM (sails per RPM " + AllConfigs.server().kinetics.windmillSailsPerRPM.get() + ")");
+        expect(sails[0] == 169, "the windmill did not assemble with its 169 sails (" + sails[0] + ")");
+        expect(Math.abs(speed) == 16, "a windmill of 169 sails at 8 sails per RPM turns at " + speed + " instead of 16");
+        boolean windmillDone = advancementDone(server, player, "windmill");
+        boolean maxedDone = advancementDone(server, player, "windmill_maxed");
+        log("advancements: create:windmill " + (windmillDone ? "GIVEN" : "missing") + ", create:windmill_maxed " + (maxedDone ? "GIVEN" : "missing"));
+        expect(windmillDone, "assembling the windmill did not give the create:windmill advancement");
+        expect(maxedDone, "assembling 169 sails did not give the create:windmill_maxed advancement");
+        context.takeScreenshot("43-gameplay-windmill-advancements");
+
+        editThroughMenu(context, entry, "kinetics", "windmillSailsPerRPM", "32", "44-gameplay-menu-sails-32");
+        expect(AllConfigs.server().kinetics.windmillSailsPerRPM.get() == 32, "after saving 32 in the menu Create reads " + AllConfigs.server().kinetics.windmillSailsPerRPM.get());
+        float slower = reassemble(context, server, player, bearing);
+        log("sails per RPM 32: the same windmill, assembled again, turns at " + slower + " RPM");
+        expect(Math.abs(slower) == 5, "with 32 sails per RPM the windmill turns at " + slower + " instead of 5 (169 / 32)");
+
+        editThroughMenu(context, entry, "kinetics", "windmillSailsPerRPM", "8", null);
+        float back = reassemble(context, server, player, bearing);
+        log("sails per RPM back to 8: " + back + " RPM");
+        expect(Math.abs(back) == 16, "with 8 sails per RPM again the windmill turns at " + back + " instead of 16");
+    }
+
+    /** Types a value into one option of a file in the editor and saves, the way a player does it in the world. */
+    private void editThroughMenu(ClientGameTestContext context, ConfigRegistry.Entry entry, String group, String option, String value, String screenshot) {
+        context.setScreen(() -> new EditorScreen(Minecraft.getInstance().gui.screen(), entry));
+        context.waitTicks(5);
+        EditorScreen editor = editor(context);
+        expect(editor != null && editor.isMutable(), "the " + entry.type() + " file is not editable in a singleplayer world");
+        if (editor == null || !editor.isMutable()) {
+            context.runOnClient(mc -> mc.gui.setScreen(null));
+            return;
+        }
+        GroupNode page = (GroupNode) editor.currentGroup().children().stream().filter(n -> n.name().equals(group)).findFirst().orElseThrow();
+        context.runOnClient(mc -> editor.open(page));
+        context.waitTicks(3);
+        EntryList.NumberRow row = context.computeOnClient(mc -> editor.list().children().stream()
+            .filter(r -> r instanceof EntryList.NumberRow n && n.leaf().name().equals(option))
+            .map(EntryList.NumberRow.class::cast).findFirst().orElse(null));
+        expect(row != null, "no row for " + option + " on the " + group + " page");
+        if (row == null) {
+            context.runOnClient(mc -> mc.gui.setScreen(null));
+            return;
+        }
+        context.runOnClient(mc -> {
+            editor.list().setScrollAmount(Math.max(0, editor.list().children().indexOf(row) * 40 - 80));
+            row.textField().setValue(value);
+        });
+        context.waitTicks(5);
+        expect(editor.changes().size() == 1, "typing " + value + " for " + option + " staged " + editor.changes().size() + " change(s)");
+        if (screenshot != null) {
+            context.takeScreenshot(screenshot);
+        }
+        context.runOnClient(mc -> {
+            editor.saveChanges();
+            mc.gui.setScreen(null);
+        });
+        context.waitTicks(5);
+    }
+
+    private static BlockState shaft() {
+        return AllBlocks.SHAFT.defaultBlockState().setValue(BlockStateProperties.AXIS, Direction.Axis.X);
+    }
+
+    /** Puts a shaft at the end of the motor line; true if it is still there (and turning) a moment later. */
+    private static boolean placeShaft(ClientGameTestContext context, TestServerContext server, BlockPos pos) {
+        server.runOnServer(s -> s.overworld().setBlockAndUpdate(pos, shaft()));
+        context.waitTicks(10);
+        return server.computeOnServer(s -> s.overworld().getBlockState(pos).is(AllBlocks.SHAFT) && Math.abs(speedAt(s, pos)) == 128);
+    }
+
+    private static float speedAt(MinecraftServer server, BlockPos pos) {
+        return server.overworld().getBlockEntity(pos) instanceof KineticBlockEntity kinetic ? kinetic.getSpeed() : Float.NaN;
+    }
+
+    /** A right click with an empty hand on the block, as the player does on a bearing to assemble or stop it. */
+    private static void rightClick(TestServerContext server, ServerPlayer player, BlockPos pos) {
+        server.runOnServer(s -> {
+            ServerLevel level = s.overworld();
+            level.getBlockState(pos).useItemOn(ItemStack.EMPTY, level, player, InteractionHand.MAIN_HAND, new BlockHitResult(Vec3.atCenterOf(pos), Direction.UP, pos, false));
+        });
+    }
+
+    /** Stops the windmill and assembles it again with two right clicks; returns its new speed. */
+    private static float reassemble(ClientGameTestContext context, TestServerContext server, ServerPlayer player, BlockPos bearing) {
+        rightClick(server, player, bearing);
+        context.waitTicks(10);
+        rightClick(server, player, bearing);
+        context.waitTicks(20);
+        return server.computeOnServer(s -> s.overworld().getBlockEntity(bearing) instanceof WindmillBearingBlockEntity be && be.isRunning() ? be.getSpeed() : Float.NaN);
+    }
+
+    private static boolean advancementDone(TestServerContext server, ServerPlayer player, String name) {
+        return server.computeOnServer(s -> {
+            AdvancementHolder advancement = s.getAdvancements().get(Identifier.fromNamespaceAndPath("create", name));
+            return advancement != null && player.getAdvancements().getOrStartProgress(advancement).isDone();
+        });
+    }
+
+    private static int optionOnDisk(ConfigRegistry.Entry entry, String group, String option) throws IOException {
+        return readFile(entry).getAsJsonObject(group).getAsJsonObject(option).get("value").getAsInt();
     }
 
     // ---- remote server: the server file must be read-only and the local file untouched ----------------------------
