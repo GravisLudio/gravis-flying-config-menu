@@ -6,6 +6,7 @@
 #   .\herramientas\probar-cliente.ps1 -SoloComprobar  solo mira si seria seguro lanzar; no lanza nada
 #   .\herramientas\probar-cliente.ps1 -SoloInforme    no lanza: resume la ultima ejecucion (marcadores [CFCM-TEST], capturas)
 #   .\herramientas\probar-cliente.ps1 -ConAddons      carga tambien Dragons Plus p3 y Connected (jars locales, rutas abajo; -Connected '' lo salta)
+#   .\herramientas\probar-cliente.ps1 -SinModMenu     prueba el juego SIN Mod Menu (es opcional: el mod tiene que ir igual)
 #   OJO 2026-10-19: Connected 1.3.3-mc26.2-3/-4 NO arranca con Create Fly 26.2-6.0.9-2 (falta EncasedCogVisual): usar -Connected ''
 # La tarea de Gradle acaba en FAILED aunque todo vaya bien (vigilante de apagado de Flywheel): manda la linea "[CFCM-TEST] ALL OK".
 param(
@@ -15,6 +16,7 @@ param(
     [switch]$SoloComprobar,
     [switch]$SoloInforme,
     [switch]$ConAddons,
+    [switch]$SinModMenu,
     [string]$DragonsPlus = 'E:\DEV\MC MODS\PORTS\CENTRAL KITCHEN\local-maven\plus\dragons\createdragonsplus\create-dragons-plus-fly-26.2-rc-2\1.11.4-p3\create-dragons-plus-fly-26.2-rc-2-1.11.4-p3.jar',
     [string]$Connected = 'E:\DEV\create connected\build\libs\create_connected-fly-1.3.3-mc26.2-4.jar'
 )
@@ -68,6 +70,10 @@ if ($ConAddons) {
         $extra += "-PwithConnected=$Connected"
         Write-Host "Con addon: $Connected"
     }
+}
+if ($SinModMenu) {
+    $extra += '-PsinModMenu'
+    Write-Host 'Sin Mod Menu'
 }
 & .\gradlew.bat runClientGameTest --offline --console=plain @extra *> $Log
 Resumen

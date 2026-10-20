@@ -117,8 +117,10 @@ dependencies {
     // No forman parte del bundle de fabric-api: modulos solo de desarrollo.
     gametestImplementation fabricApi.module("fabric-gametest-api-v1", fabric_api_version)
     gametestImplementation fabricApi.module("fabric-client-gametest-api-v1", fabric_api_version)
-    // Para probar la integracion con Mod Menu en el cliente de pruebas.
-    gametestRuntimeOnly("com.terraformersmc:modmenu:${modmenu_version}") { transitive = false }
+    // Para probar la integracion con Mod Menu en el cliente de pruebas; -PsinModMenu prueba el juego sin el (es opcional).
+    if (!project.hasProperty('sinModMenu')) {
+        gametestRuntimeOnly("com.terraformersmc:modmenu:${modmenu_version}") { transitive = false }
+    }
 }
 
 // Addon jars for the client test, only when asked (herramientas\probar-cliente.ps1 -ConAddons passes them):

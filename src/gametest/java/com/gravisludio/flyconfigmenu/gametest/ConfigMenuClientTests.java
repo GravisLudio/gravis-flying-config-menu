@@ -19,6 +19,7 @@ import com.gravisludio.flyconfigmenu.ui.RootScreen;
 import com.gravisludio.flyconfigmenu.ui.menu.CreateMenuScreen;
 import com.gravisludio.flyconfigmenu.ui.menu.GogglesButton;
 import net.fabricmc.fabric.api.client.screen.v1.Screens;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.PauseScreen;
 import com.gravisludio.flyconfigmenu.ui.cog.CogShadow;
 import com.terraformersmc.modmenu.ModMenu;
@@ -111,8 +112,30 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
             && Screens.getWidgets(mc.gui.screen()).stream().anyMatch(w -> w instanceof GogglesButton));
     }
 
+    /** True if the goggles button covers another visible button of the screen (it must sit beside them). */
+    private static boolean gogglesOverlap(ClientGameTestContext context) {
+        return context.computeOnClient(mc -> {
+            List<AbstractWidget> widgets = Screens.getWidgets(mc.gui.screen());
+            for (AbstractWidget goggles : widgets) {
+                if (!(goggles instanceof GogglesButton)) {
+                    continue;
+                }
+                for (AbstractWidget other : widgets) {
+                    if (other != goggles && other.visible
+                        && other.getX() < goggles.getX() + goggles.getWidth() && goggles.getX() < other.getX() + other.getWidth()
+                        && other.getY() < goggles.getY() + goggles.getHeight() && goggles.getY() < other.getY() + other.getHeight()) {
+                        log("the goggles button covers '" + other.getMessage().getString() + "'");
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
+    }
+
     private void goggles(ClientGameTestContext context) {
         expect(hasGoggles(context), "the title screen has no goggles button");
+        expect(!gogglesOverlap(context), "the goggles button covers another button of the title screen");
         // The goggles are drawn once the loading overlay is gone; wait for it so the picture shows them.
         context.waitFor(mc -> mc.gui.overlay() == null);
         context.waitTicks(10);
@@ -135,6 +158,24 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
         context.takeScreenshot("00c-root-from-menu");
         context.setScreen(() -> new TitleScreen());
         context.waitTicks(10);
+
+        // Create Fly's own setting can move the button to row 3, which is "Mods | Minecraft Realms" with Mod Menu and only
+        // "Minecraft Realms" without it: the button has to find its place either way.
+        var client = com.zurrtum.create.client.infrastructure.config.AllConfigs.client();
+        int row = client.mainMenuConfigButtonRow.get();
+        try {
+            client.mainMenuConfigButtonRow.set(3);
+            context.setScreen(() -> new TitleScreen());
+            context.waitTicks(5);
+            String modMenu = FabricLoader.getInstance().isModLoaded("modmenu") ? "installed" : "not installed";
+            expect(hasGoggles(context), "with the button in row 3 the title screen has no goggles button (Mod Menu " + modMenu + ")");
+            expect(!gogglesOverlap(context), "with the button in row 3 the goggles cover another button (Mod Menu " + modMenu + ")");
+            context.takeScreenshot("00d-title-goggles-row3");
+        } finally {
+            client.mainMenuConfigButtonRow.set(row);
+        }
+        context.setScreen(() -> new TitleScreen());
+        context.waitTicks(5);
     }
 
     // ---- registry -------------------------------------------------------------------------------------------------
@@ -463,6 +504,10 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
     }
 
     private void modMenu(ClientGameTestContext context) {
+        if (!FabricLoader.getInstance().isModLoaded("modmenu")) {
+            log("Mod Menu not installed (optional): the goggles button is the way in, checked in the first step");
+            return;
+        }
         expect(ModMenu.hasConfigScreen("create"), "Mod Menu has no config button for Create");
         expect(ModMenu.hasConfigScreen(ConfigMenu.MOD_ID), "Mod Menu has no config button for our own entry");
         boolean root = context.computeOnClient(mc -> ModMenu.getConfigScreen("create", mc.gui.screen()) instanceof RootScreen);
@@ -761,6 +806,7 @@ public class ConfigMenuClientTests implements FabricClientGameTest {
                 context.setScreen(() -> new PauseScreen(true));
                 context.waitTicks(10);
                 expect(hasGoggles(context), "the pause menu has no goggles button");
+                expect(!gogglesOverlap(context), "the goggles button covers another button of the pause menu");
                 context.takeScreenshot("22-pause-goggles");
 
                 // The client's own (client) file stays editable on a remote server.

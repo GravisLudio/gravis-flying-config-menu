@@ -81,13 +81,24 @@ public final class GogglesButton extends Button {
             return;
         }
         boolean onLeft = offsetX < 0;
-        String target = I18n.get(rows.get(row - 1)[onLeft ? 0 : 1]);
+        String[] keys = rows.get(row - 1);
+        List<String> labels = List.of(I18n.get(keys[0]), I18n.get(keys[1]));
         List<AbstractWidget> buttons = Screens.getWidgets(screen);
+        AbstractWidget anchor = buttons.stream().filter(w -> labels.contains(w.getMessage().getString())).findFirst().orElse(null);
+        if (anchor == null) {
+            return;
+        }
+        // The labels only find the row; the goggles go next to its outermost button on that side. Row 3 of the title
+        // screen is "Mods | Minecraft Realms" with Mod Menu's classic button, but only "Minecraft Realms" without Mod
+        // Menu or with its icon button (which sits in the icon row, where the goggles must not cover anything).
+        AbstractWidget edge = anchor;
         for (AbstractWidget widget : buttons) {
-            if (widget.getMessage().getString().equals(target)) {
-                buttons.add(new GogglesButton(widget.getX() + offsetX + (onLeft ? -20 : widget.getWidth()), widget.getY()));
-                return;
+            if (widget.getY() == anchor.getY() && (onLeft
+                ? widget.getX() < edge.getX()
+                : widget.getX() + widget.getWidth() > edge.getX() + edge.getWidth())) {
+                edge = widget;
             }
         }
+        buttons.add(new GogglesButton(onLeft ? edge.getX() + offsetX - 20 : edge.getX() + edge.getWidth() + offsetX, edge.getY()));
     }
 }
